@@ -23,6 +23,11 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: pip install pyyaml  # only to prove the frontmatter is real YAML
+      - name: Install age (for the encrypted home tests)
+        run: |
+          curl -sSL https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz | tar xz
+          sudo install age/age age/age-keygen /usr/local/bin/
+          age --version
       - run: make test
       - name: Nothing local in any commit
         run: python3 tools/guard.py --history
