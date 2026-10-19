@@ -57,8 +57,10 @@ def inside(m, path):
 
 
 def resolved(c, text, base="/tpl"):
-    """The CV text with template: links pointing at base/<name>/ (the mounts, or a local mirror)."""
+    """The CV text laid out by its template (templates.laid_out), with template: links pointing at
+    base/<name>/ (the mounts, or a local mirror)."""
     known = set(templates.names(c))
+    text = templates.laid_out(c, text)
 
     def to(match):
         name = match.group(1)
@@ -155,6 +157,16 @@ def pdf_text(c, text, base, out, warm=False):
     cmd[2:2] = ["-i"]
     r = subprocess.run(cmd + ["weasyprint", "--base-url", cbase + "/", "-", cout], input=html, cwd=ROOT, capture_output=True, text=True)
     return r.returncode == 0, (r.stderr or r.stdout or "")[-3000:]
+
+
+def pdf_to_text(pdf_file):
+    """(ok, the text of a PDF inside this repository, pages separated by form feeds)."""
+    if LOCAL_MODE:
+        r = subprocess.run(["pdftotext", "-layout", pdf_file, "-"], capture_output=True, text=True)
+        return r.returncode == 0, r.stdout if r.returncode == 0 else r.stderr
+    m = {ROOT: "/work"}
+    r = subprocess.run(docker_args(m) + ["pdftotext", "-layout", inside(m, pdf_file), "-"], cwd=ROOT, capture_output=True, text=True)
+    return r.returncode == 0, r.stdout if r.returncode == 0 else r.stderr
 
 
 def png(pdf_file, prefix, dpi=110, first_only=False):

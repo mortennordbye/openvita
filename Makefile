@@ -54,7 +54,7 @@ PORT ?= 8000
 HOME_DIR := $(if $(filter command line,$(origin HOME)),$(HOME))
 TEMPLATE ?=
 
-.PHONY: hooks guard connect-home all cv png serve watch-feedback use-template templates new new-person connect draft save release versions form-add form \
+.PHONY: hooks guard connect-home all cv png serve watch-feedback use-template templates template-check new-template new new-person connect draft save release versions form-add form \
         image clean check-c test lint-profile \
         profile-path profile-init profile-index profile-new profile-commit profile-log profile-restore profile-as-of
 
@@ -86,6 +86,15 @@ use-template: check-c
 
 templates:
 	@python3 tools/templates.py list $(C)
+
+template-check: $(STAMP)
+	@test -n "$(T)" || { echo "usage: make template-check T=<template> [C=<name>] [CVLANG=en|nb]"; exit 1; }
+	@python3 tools/template-check.py $(T) $(C) $(if $(CVLANG),--lang $(CVLANG))
+
+new-template:
+	@test -n "$(T)" || { echo "usage: make new-template T=<name> [FROM=<template>] [C=<name> | DIR=<folder>]"; exit 1; }
+	@test -n "$(C)$(DIR)" || { echo "say where: C=<name> (local/<name>/templates) or DIR=<folder>"; exit 1; }
+	@python3 tools/templates.py new $(T) $(if $(DIR),$(DIR),local/$(C)/templates) $(if $(FROM),$(FROM),classic)
 
 watch-feedback: check-c
 	@python3 tools/watch-feedback.py $(C)

@@ -15,10 +15,12 @@ TEMPLATES.md            what a template is, where they are found, the markup eve
 openself/               OpenSelf, the profile format (git submodule): SPEC.md, schema/, labels/,
                         tech-names.txt, example/ (fictional), the library and CLI, the web UI.
                         Change it in its own repository.
-templates/<name>/       built-in templates (classic, sidebar, minimal): template.json, cv.css
+templates/<name>/       built-in templates (classic, sidebar, minimal): template.json, cv.css (a template
+                        may also have layout.html, where the blocks go: TEMPLATES.md "Layouts")
 templates/_shared/      fonts.css and the fonts every template may use
 examples/templates/     a fictional company's template, to copy
-tools/                  serve.py (workbench), draft.py (CV from the profile), templates.py,
+tools/                  serve.py (workbench), draft.py (CV from the profile), templates.py (finding,
+                        switching, layouts), template-check.py,
                         render.py and render-worker.py (WeasyPrint in Docker), profiles.py (finds
                         each person's profile), profile_api.py, watch-feedback.py, fill-docx.py,
                         how-it-works.html, static/, vendor/ (pdf.js and marked), tests/
@@ -77,6 +79,7 @@ Run from the repository root. Rendering happens in the `openvita` Docker image, 
 - `make png C=<name> [APP=<app>]`: a PNG of each page, for checking the layout
 - `make new C=<name> APP=<yyyy-mm-company-role> [TEMPLATE=<t>]`: new application from the base CV
 - `make templates [C=<name>]`, `make use-template C=<name> [APP=<app>] TEMPLATE=<t>`
+- `make new-template T=<name> [FROM=<t>] (C=<name> | DIR=<folder>)`, `make template-check T=<t> [C=<name>]`
 - `make new-person C=<name> [PROFILE=<path>]`, `make connect C=<name> PROFILE=<path>`
 - `make save C=<name> MSG="..."`: snapshot the person's folder
 - `make release C=<name> [APP=<app>] [TAG=<label>]`: the next numbered PDF in `releases/`, tagged
