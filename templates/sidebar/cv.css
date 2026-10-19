@@ -1,0 +1,70 @@
+/* Sidebar: page 1 has a dark column on the left (photo, key skills, certifications, languages,
+   links) and the header, profile and education on the right. Experience and projects start on
+   page 2, full width. The colours are variables, so a copy of this template can recolour it. */
+@import url(../_shared/fonts.css);
+
+:root { --side: #2f3437; --side-ink: #e9ecee; --side-mut: #a9b1b6; --ink: #222; --head: #111; --mut: #6b6f72;
+        --accent: #4f7f8c; --line: #d5d9db; }
+
+@page { size: A4; margin: 44pt 44pt 40pt 44pt; }
+@page :first { margin: 44pt 40pt 36pt 214pt; }
+/* the dark column: page 1 only, drawn from the page's top left corner (content box starts at 214pt, 44pt) */
+body::before { content: ""; position: absolute; left: -214pt; top: -44pt; width: 186pt; height: 842pt; background: var(--side); z-index: -1; }
+
+html { font-family: Body; font-size: 8.8pt; line-height: 12.2pt; color: var(--ink); }
+body { margin: 0; }
+h1, h2, h3, p, ul { margin: 0; padding: 0; font-weight: inherit; }
+a { color: inherit; text-decoration: none; }
+ul { list-style: none; }
+
+/* left column on page 1: positioned against the first page's content box (which starts at 214pt) */
+.photo { position: absolute; left: -184pt; top: 0; width: 112pt; height: 112pt; margin-left: 0; border-radius: 50%; overflow: hidden;
+         border: 2pt solid var(--side-mut); }
+.photo img { width: 100%; height: 100%; object-fit: cover; }
+.sidebar { position: absolute; left: -184pt; width: 142pt; color: var(--side-ink); }
+.sidebar.main { top: 140pt; }
+.sidebar.social { top: 640pt; }
+.sidebar h2 { font-family: Head; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.12em; color: #fff;
+              border-bottom: 0.6pt solid var(--side-mut); padding-bottom: 3pt; margin-bottom: 7pt; }
+.sidebar ul + h2 { margin-top: 20pt; }
+.sidebar li + li { margin-top: 3pt; }
+.sidebar.social p { margin-top: 4pt; font-size: 8pt; }
+.sidebar .icon { display: inline-block; width: 12pt; color: var(--side-mut); }
+
+/* brand: logo and name at the bottom of the side column */
+.brand { position: absolute; left: -184pt; top: 700pt; width: 142pt; color: var(--side-ink); }
+.brand-logo { max-width: 110pt; max-height: 28pt; }
+.brand-name { font-family: Head; font-weight: 700; margin-top: 4pt; }
+.brand-url { color: var(--side-mut); font-size: 7.6pt; }
+
+/* right column */
+.header { margin-bottom: 20pt; }
+.name { font-family: Head; font-weight: 700; font-size: 25pt; line-height: 1.1; color: var(--head); text-transform: uppercase; }
+.role { font-family: Head; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-top: 6pt; }
+.contact { margin-top: 12pt; }
+.contact p { line-height: 13pt; }
+.contact .icon { display: inline-block; width: 13pt; font-size: 7.6pt; color: var(--accent); }
+
+h2.section, h2.page-title { font-family: Head; font-weight: 700; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--head); margin: 0 0 9pt; break-after: avoid; }
+h2.section::after, h2.page-title::after { content: ""; display: block; width: 26pt; border-bottom: 1.6pt solid var(--accent); margin-top: 4pt; }
+h2.page-title { break-before: page; }
+h2.page-title ~ h2.page-title { break-before: auto; margin-top: 24pt; } /* only the first one starts page 2 */
+section, .header { margin-bottom: 18pt; }
+.profile p + p { margin-top: 6pt; }
+
+/* timeline: a thin line on the left, a dot per entry */
+.timeline { border-left: 0.8pt solid var(--line); padding-left: 14pt; margin-left: 3pt; }
+.entry { position: relative; break-inside: avoid; }
+.entry:not(:last-child) { margin-bottom: 13pt; }
+.timeline .entry::before { content: ""; position: absolute; left: -17.6pt; top: 3pt; width: 6pt; height: 6pt; border-radius: 50%;
+                            background: white; border: 1pt solid var(--accent); }
+.entry .date { position: absolute; right: 0; top: 1pt; font-size: 7.6pt; color: var(--mut); }
+.entry h3 { font-family: Head; font-weight: 700; font-size: 9.4pt; margin-right: 90pt; color: var(--head); }
+.entry .org { color: var(--mut); margin-right: 90pt; }
+.entry .body { margin-top: 3pt; }
+.entry .body p + p, .entry .body p + ul, .entry .body ul + p { margin-top: 5pt; }
+.entry .body ul { padding-left: 10pt; }
+.entry .body li { position: relative; }
+.entry .body li::before { content: ""; position: absolute; left: -8pt; top: 4.6pt; width: 2.6pt; height: 2.6pt; border-radius: 50%; background: var(--accent); }
+.tags { margin-top: 4pt; font-size: 7.6pt; color: var(--accent); }

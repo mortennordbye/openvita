@@ -1,0 +1,13 @@
+{
+  "name": "example-company",
+  "label": "Example company",
+  "description": "What a company's own template looks like: logo, colours, work email and office address. Copy it and make it yours.",
+  "languages": ["en", "nb"],
+  "brand": {
+    "name": "Brightwater Consulting",
+    "url": "https://brightwater.example",
+    "logo": "assets/logo.svg",
+    "email": "{first}.{last}@brightwater.example",
+    "address": "1 Harbour Street, Example City"
+  }
+}

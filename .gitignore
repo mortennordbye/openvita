@@ -1,3 +1,26 @@
-__pycache__/
-.DS_Store
+# Generated PDFs and page previews
+/build/
 /out/
+
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+__pycache__/
+
+# Assistant context is committed (AGENTS.md, CLAUDE.md, skills), also when a personal global
+# gitignore excludes it. Personal settings stay local.
+!AGENTS.md
+!CLAUDE.md
+!.claude/
+.claude/*
+!.claude/skills/
+
+# Everything about a person stays on their machine, under local/ (see local/README.md).
+local/*
+!local/README.md
+!local/customers/
+local/customers/*
+!local/customers/README.md
+!local/customers/_template.md

@@ -1,0 +1,84 @@
+<div class="how">
+<h1>How it works</h1>
+<p class="lead">The workbench builds and refines CVs from your OpenSelf profile, together with an assistant such as Claude Code if you use one. Everything you do here is stored in files on your machine, and the assistant reads the same files.</p>
+
+<h2>The flow</h2>
+<div class="flow">
+  <div class="box shared"><b>Instructions</b><span>Shared. Rules and style for CVs.</span></div>
+  <div class="plus">+</div>
+  <div class="box mine"><b>Personal instructions and tuning</b><span>Your wishes, and what the assistant has learned from you.</span></div>
+  <div class="plus">+</div>
+  <div class="box mine"><b>Profile</b><span>The only place facts come from.</span></div>
+  <div class="plus">+</div>
+  <div class="box case"><b>Job ad</b><span>What the CV should answer.</span></div>
+  <div class="arrow">&darr;</div>
+  <div class="box gen"><b>A draft, then the assistant tailors it</b><span>Picks and rephrases from the profile. Invents nothing.</span></div>
+  <div class="arrow">&darr;</div>
+  <div class="box you"><b>You read and select text</b><span>Write what should change in the small box.</span></div>
+  <div class="arrow">&darr;</div>
+  <div class="box gen"><b>The assistant edits and learns</b><span>Lessons that last go into tuning.md.</span></div>
+  <div class="arrow loop">&orarr; the next CV starts from tuning.md</div>
+</div>
+
+<h2>What each part is</h2>
+<table>
+<tr><th>Part</th><th>What</th><th>Where</th><th>Who changes it</th></tr>
+<tr><td>Instructions</td><td>What the assistant reads: workflow, hard rules, how CVs are written, how the profile is read.</td><td><code>AGENTS.md</code>, <code>guide/</code>, <code>TEMPLATES.md</code></td><td>Shared. Suggest a change with a comment.</td></tr>
+<tr><td>Personal instructions</td><td>Your standing wishes, and what the assistant has learned from your feedback.</td><td><code>local/&lt;name&gt;/AGENTS.md</code> and <code>tuning.md</code></td><td>You and the assistant.</td></tr>
+<tr><td>Profile</td><td>Your whole career in your own words, one file per job and per assignment, with an overview. The source of every fact in a CV. Every change is kept in its own history.</td><td><code>local/&lt;name&gt;/profile/</code>, or where <code>openvita.json</code> points (format: <code>openself/SPEC.md</code>)</td><td>Only you. The assistant writes what you say, and never adds facts on its own.</td></tr>
+<tr><td>Job ad</td><td>The text you paste when you create an application.</td><td><code>applications/&lt;app&gt;/job-ad.md</code></td><td>You.</td></tr>
+<tr><td>CV</td><td>The CV itself: a general one, or one per application.</td><td><code>base/&lt;variant&gt;/cv.html</code>, <code>applications/&lt;app&gt;/cv.html</code></td><td>The draft, then the assistant after your comments.</td></tr>
+<tr><td>Notes</td><td>What an application emphasises and why, with the profile entries it is built from.</td><td><code>applications/&lt;app&gt;/notes.md</code></td><td>The assistant.</td></tr>
+<tr><td>Form</td><td>A Word form sent with the job (a competence matrix, say), filled in. Select an answer to comment, download the .docx from its tab.</td><td><code>applications/&lt;app&gt;/forms/</code></td><td>The assistant fills it in.</td></tr>
+<tr><td>Comments</td><td>Everything you asked for, and what was done. Never deleted.</td><td><code>local/&lt;name&gt;/feedback.json</code></td><td>You write, the assistant answers.</td></tr>
+<tr><td>Template</td><td>How the CV looks: layout, colours, fonts, and a company's brand. Not the content.</td><td><code>templates/</code>, <code>OPENVITA_TEMPLATES</code>, or your own folder</td><td>You choose one per CV.</td></tr>
+<tr><td>Revisions</td><td>Saved versions of your folder. Any old CV can be shown as a PDF.</td><td>The folder's own local git</td><td>You, with Save.</td></tr>
+</table>
+
+<h2>Templates and content</h2>
+<p>A <b>template</b> decides only how the CV looks. The <b>content</b> (the text, the jobs, the certifications) is in <code>cv.html</code> and is the same in every template. Switching template changes the look, not the text. A company template can also bring its logo, work email and office address.</p>
+<table>
+<tr><th>Template</th><th>Look</th><th>Use it when</th></tr>
+<tr><td>Classic</td><td>One column, black on white.</td><td>The CV goes through an applicant tracking system, or gets printed. The default.</td></tr>
+<tr><td>Sidebar</td><td>A dark side column on page 1 with skills and links, a timeline from page 2.</td><td>You want a more designed look.</td></tr>
+<tr><td>Minimal</td><td>One column, plenty of white space, one accent colour.</td><td>You want it calm and short.</td></tr>
+</table>
+<p>Pick a template with the <b>Template</b> button. It shows your own CV in each template, so you see the difference before you switch. The previous version is saved as a revision every time. Your own or your company's templates show up in the same list; see <code>TEMPLATES.md</code> for how to make one.</p>
+
+<h2>Using it</h2>
+<ol>
+<li><b>Draft from profile</b> builds the CV straight from your profile. It only replaces a CV nobody has edited since its last draft, unless you confirm.</li>
+<li>Press <b>New</b> next to Applications, name the folder (<code>yyyy-mm-company-role</code>) and paste the job ad.</li>
+<li>Check the ad under <b>Job ad</b>, then press <b>Tailor CV</b>. The assistant writes the CV, and the page updates when it is done.</li>
+<li>Read the CV. Select text you want changed, write what should be different and press Send (or Cmd+Enter).</li>
+<li>The assistant edits the CV and marks the comment done with a note. See <b>Comments</b> for status.</li>
+<li>Happy with it: <b>Save</b> takes a revision. The PDF menu opens the file, or (on macOS) copies it or shows it in Finder.</li>
+</ol>
+<p>You can also select text in the Profile and in the Instructions. A wish about the profile only becomes a change there if you say so, in your own words.</p>
+
+<h2>The profile</h2>
+<p>The Profile view is OpenSelf's own editor (<code>openself/</code>). It holds your whole career, one entry per employment and per assignment. Everything in your CVs comes from here, so what is here must be right. Edit it yourself, or ask the assistant to interview you about an entry.</p>
+<ul>
+<li><b>List</b>, <b>Timeline</b> and <b>Technology</b> show the profile from different sides. The dot shows how certain each entry is.</li>
+<li><b>Questions and gaps</b>: what is missing or needs an answer. Answer directly, and your words are kept.</li>
+<li><b>Edit</b> an entry, <b>New</b> entries, <b>Remove</b> (moved aside with a reason, nothing is deleted).</li>
+<li><b>History</b>: every change, yours and the assistant's. Bring back an older version, or see the whole profile as it was on a date.</li>
+</ul>
+<p>Flags in an entry: <b>question</b> and <b>conflict</b> stay open until you answer, <b>emphasis</b> and <b>omit</b> are wishes every CV follows, <b>correction</b> is a log.</p>
+
+<h2>Rules that do not change</h2>
+<ul>
+<li>Facts in a CV must be in the profile. What is not backed is weakened or removed.</li>
+<li>Nothing is added to the profile to justify a claim. The assistant writes only what you said.</li>
+<li>Every change to the profile is its own version, and can be brought back.</li>
+<li>Feedback is kept as history. You hide it, you do not delete it.</li>
+<li>Before a CV is changed, a revision is taken, so the previous version can be found.</li>
+</ul>
+
+<h2>Good to know</h2>
+<ul>
+<li><b>Tailoring and comments need an assistant session</b> that follows <code>feedback.json</code>. Ask it to start <code>make watch-feedback C=&lt;name&gt;</code>, or to look at the comments. Without one, requests wait.</li>
+<li>Lessons in <code>tuning.md</code> are written by the assistant from your comments. Read it now and then, and correct it.</li>
+<li>The workbench runs only on your machine (<code>127.0.0.1</code>) and stores nothing outside your folders.</li>
+</ul>
+</div>

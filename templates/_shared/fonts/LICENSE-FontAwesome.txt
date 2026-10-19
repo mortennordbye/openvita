@@ -1,0 +1,6 @@
+Font Awesome Free 5 (FontAwesome5Free-Solid-900.otf, FontAwesome5Brands-Regular-400.otf)
+by Fonticons, Inc. - https://fontawesome.com
+
+Fonts: SIL Open Font License 1.1 (https://scripts.sil.org/OFL)
+Icons: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+Full terms: https://fontawesome.com/license/free

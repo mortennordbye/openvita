@@ -1,0 +1,48 @@
+/* Minimal: one column, generous white space, one accent colour. Change --accent to recolour it.
+   Dates sit in a narrow column to the left of each entry. Markup: TEMPLATES.md. */
+@import url(../_shared/fonts.css);
+
+:root { --accent: #2a6f97; --ink: #252525; --mut: #77797c; --line: #e3e3e3; --gutter: 86pt; }
+
+@page { size: A4; margin: 54pt 58pt 50pt 58pt; }
+
+html { font-family: Body; font-size: 9pt; line-height: 1.5; color: var(--ink); }
+body { margin: 0; }
+h1, h2, h3, p, ul { margin: 0; padding: 0; font-weight: inherit; }
+a { color: inherit; text-decoration: none; }
+
+.brand { display: flex; align-items: center; gap: 8pt; margin-bottom: 26pt; color: var(--mut); font-size: 8pt; }
+.brand-logo { height: 16pt; }
+.brand-name { font-weight: 600; color: var(--ink); }
+.brand-url::before { content: "· "; }
+
+.photo { float: right; width: 58pt; height: 58pt; border-radius: 50%; overflow: hidden; }
+.photo img { width: 100%; height: 100%; object-fit: cover; }
+
+.header { margin-bottom: 26pt; }
+.name { font-family: Head; font-weight: 600; font-size: 26pt; line-height: 1.05; letter-spacing: -0.015em; }
+.role { color: var(--accent); font-size: 11pt; margin-top: 4pt; }
+.contact { margin-top: 10pt; font-size: 8.4pt; color: var(--mut); }
+.contact p { display: inline; }
+.contact p + p::before { content: "   ·   "; }
+.contact .icon { display: none; }
+
+h2.section, .sidebar h2, h2.page-title { font-size: 8pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em;
+  color: var(--accent); margin: 24pt 0 9pt; break-after: avoid; }
+h2.section::after, .sidebar h2::after, h2.page-title::after { content: ""; display: block; border-bottom: 0.5pt solid var(--line); margin-top: 4pt; }
+
+.sidebar ul { list-style: none; }
+.sidebar li { display: inline; }
+.sidebar li:not(:last-child)::after { content: ","; }
+.sidebar.social p { display: inline; margin-right: 14pt; }
+.sidebar .icon { display: none; }
+
+.entry { position: relative; padding-left: var(--gutter); break-inside: avoid; }
+.entry + .entry { margin-top: 14pt; }
+.entry .date { position: absolute; left: 0; top: 1pt; width: calc(var(--gutter) - 12pt); font-size: 8pt; color: var(--mut); }
+.entry h3 { font-weight: 600; font-size: 9.6pt; }
+.entry .org { color: var(--mut); }
+.entry .body { margin-top: 4pt; }
+.entry .body p + p, .entry .body p + ul, .entry .body ul + p { margin-top: 5pt; }
+.entry .body ul { padding-left: 11pt; }
+.tags { margin-top: 4pt; font-size: 8pt; color: var(--accent); }
