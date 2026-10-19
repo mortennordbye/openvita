@@ -1,0 +1,10 @@
+<!-- Where the CV's blocks go (TEMPLATES.md, "Layouts"): the brand row, the header beside the
+     photo, then page 1 in two columns, skills and links on the right. An element with data-slot
+     gets those blocks inside it and is left out when the CV has none of them. -->
+<!-- slot: brand -->
+<div class="top" data-slot="photo header"></div>
+<div class="side" data-slot="sidebar"></div>
+<div class="main" data-slot="profile highlight edu"></div>
+<!-- slot: rest -->
+<!-- slot: experience -->
+<!-- slot: projects -->

@@ -56,8 +56,11 @@ make draft C=kari TEMPLATE=sidebar          # draft in another template
 make use-template C=kari TEMPLATE=minimal   # switch an existing CV
 ```
 
-Your own or your company's templates are folders with `template.json` and `cv.css`. Point
-OpenVita at them in either of two ways:
+Your own or your company's templates are folders with `template.json`, `cv.css` and, when the
+blocks need to move (columns, boxes, another order), a `layout.html`. Every CV fits every template.
+`make new-template T=<name> C=kari` starts one from a built-in, and `make template-check T=<name>`
+renders the example profile in it and checks that nothing is lost. Point OpenVita at them in either
+of two ways:
 
 - for everyone on this machine: `export OPENVITA_TEMPLATES=~/work/cv-templates`
 - for one person: `"templates": ["~/work/cv-templates"]` in `local/<name>/openvita.json`

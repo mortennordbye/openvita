@@ -134,8 +134,12 @@ def entry(e, title, org, date, body, tags):
     return "\n".join(out)
 
 
-def build(c, template, lang):
-    p = model.load_profile(profiles.profile_dir(c)) if profiles.exists(c) else None
+def build(c, template, lang, profile_dir=""):
+    """The CV of person c, or of the profile in profile_dir (without a photo) when given."""
+    if profile_dir:
+        p = model.load_profile(profile_dir)
+    else:
+        p = model.load_profile(profiles.profile_dir(c)) if profiles.exists(c) else None
     w = WORDS[lang]
     labels = schema.labels(p.lang if p else lang)
     person = p.entries.get("person") if p else None
@@ -147,7 +151,7 @@ def build(c, template, lang):
            f'<link rel="stylesheet" href="template:{template["name"]}/cv.css">', "</head>", "<body>", "",
            templates.brand_html(template), ""]
 
-    for photo in ("photo.jpg", "profile.jpg", "photo.png"):
+    for photo in ("photo.jpg", "profile.jpg", "photo.png") if not profile_dir else ():
         if os.path.isfile(os.path.join(profiles.person_dir(c), photo)):
             out += [f'<div class="photo"><img src="../../{photo}" alt=""></div>', ""]
             break

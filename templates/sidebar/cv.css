@@ -50,6 +50,7 @@ h2.section, h2.page-title { font-family: Head; font-weight: 700; font-size: 9pt;
 h2.section::after, h2.page-title::after { content: ""; display: block; width: 26pt; border-bottom: 1.6pt solid var(--accent); margin-top: 4pt; }
 h2.page-title { break-before: page; }
 h2.page-title ~ h2.page-title { break-before: auto; margin-top: 24pt; } /* only the first one starts page 2 */
+h2.page-title.same-page { break-before: auto; margin-top: 24pt; }
 section, .header { margin-bottom: 18pt; }
 .profile p + p { margin-top: 6pt; }
 
