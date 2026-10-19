@@ -1,0 +1,3 @@
+[submodule "openself"]
+	path = openself
+	url = https://github.com/mortennordbye/openself.git
