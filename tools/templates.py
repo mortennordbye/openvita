@@ -30,6 +30,7 @@ ROOT = profiles.ROOT
 BUILTIN = os.path.join(ROOT, "templates")
 SHARED = os.path.join(BUILTIN, "_shared")  # fonts any template may use as ../_shared/fonts/...
 DEFAULT = "classic"
+MARKUP = "openvita"  # the markup draft.py writes; a template that styles other markup says so in template.json
 NAME = re.compile(r"[a-z0-9][\w-]*")
 LINK = re.compile(r"template:([\w-]+)/")
 CSS = re.compile(r"template:([\w-]+)/cv\.css")
@@ -70,8 +71,9 @@ def read(folder, source):
     if not os.path.isfile(os.path.join(folder, "cv.css")):
         return None, f"{folder}: no cv.css"
     brand = meta.get("brand") if isinstance(meta.get("brand"), dict) else {}
+    markup = str(meta.get("markup") or MARKUP)
     return {"name": name, "label": str(meta.get("label") or name), "description": str(meta.get("description") or ""),
-            "dir": os.path.realpath(folder), "source": source, "brand": brand}, None
+            "dir": os.path.realpath(folder), "source": source, "brand": brand, "markup": markup}, None
 
 
 def discover(c=""):
@@ -145,6 +147,16 @@ def switch(text, t):
     return BRAND.sub(lambda _: brand_html(t), text, count=1)
 
 
+def compatible(c, text, t):
+    """None when a CV (its text) can move to template t, else why not: templates that style
+    different markup cannot be swapped, the content would not fit."""
+    cur = find(current(text), c)
+    if cur and cur["markup"] != t["markup"]:
+        return (f"{t['label']} styles {t['markup']} markup and this CV is written for {cur['markup']} markup "
+                f"({cur['label']}); pick a template with the same markup")
+    return None
+
+
 def use(c, path, name):
     t = find(name, c)
     if not t:
@@ -153,6 +165,9 @@ def use(c, path, name):
         text = fh.read()
     if not CSS.search(text):
         raise SystemExit(f"{path} does not link template:<name>/cv.css")
+    why = compatible(c, text, t)
+    if why:
+        raise SystemExit(why)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(switch(text, t))
 
@@ -163,7 +178,7 @@ def main(argv):
         found, problems = discover(c)
         for t in found:
             where = os.path.relpath(t["dir"], ROOT) if os.path.commonpath([ROOT, t["dir"]]) == ROOT else t["dir"]
-            print(f"{t['name']:<18} {t['label']:<22} {where}  ({t['source']})")
+            print(f"{t['name']:<18} {t['label']:<22} {where}  ({t['source']}" + ("" if t["markup"] == MARKUP else f", {t['markup']} markup") + ")")
         for p in problems:
             print(f"problem: {p}", file=sys.stderr)
         return 1 if problems else 0

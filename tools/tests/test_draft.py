@@ -100,5 +100,32 @@ class Draft(LocalDir, unittest.TestCase):
         self.assertIn("<!-- brand --><!-- /brand -->", html)
 
 
+    def test_own_markup_templates(self):
+        import json
+        family = os.path.join(self.tmp, "family")
+        for name in ("old", "old-light"):
+            os.makedirs(os.path.join(family, name))
+            with open(os.path.join(family, name, "template.json"), "w") as f:
+                json.dump({"label": name, "markup": "hand-2025"}, f)
+            with open(os.path.join(family, name, "cv.css"), "w") as f:
+                f.write("body {}")
+        self.profiles.set_config("ola", templates=[family])
+        with self.assertRaises(SystemExit) as e:
+            self.draft.write("ola", template="old")  # a draft is openvita markup only
+        self.assertIn("its own markup", str(e.exception))
+        path = self.draft.target("ola", app="2026-10-x")
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w", encoding="utf-8") as f:
+            f.write('<link rel="stylesheet" href="template:old/cv.css"><img src="template:old/assets/logo.png">\n')
+        self.draft.switch("ola", path, "old-light")  # same family: fine, assets follow
+        with open(path, encoding="utf-8") as f:
+            self.assertIn("template:old-light/assets/logo.png", f.read())
+        with self.assertRaises(SystemExit) as e:
+            self.draft.switch("ola", path, "classic")  # other markup: refused
+        self.assertIn("same markup", str(e.exception))
+        self.assertEqual(self.templates.find("old", "ola")["markup"], "hand-2025")
+        self.assertEqual(self.templates.find("classic", "ola")["markup"], "openvita")
+
+
 if __name__ == "__main__":
     unittest.main()

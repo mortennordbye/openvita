@@ -33,6 +33,10 @@ acme/
 ```
 
 - `name` defaults to the folder name: lower case letters, digits, `-` and `_`.
+- `markup` (optional, default `openvita`): the markup the CSS styles. A template made for other
+  markup, such as CVs written by hand before OpenVita, says so (`"markup": "mine-2025"`). A CV
+  switches only between templates with the same markup, the workbench offers only those, and
+  `make draft` writes openvita markup only. Templates of one family share a markup name.
 - `brand` is optional. When present, a draft puts a brand block in the CV (logo, name, web
   address), uses the work email made from the pattern (`{first}` and `{last}` from the person's
   name, æ ø å folded to ASCII) and the office address instead of the person's own, and keeps the

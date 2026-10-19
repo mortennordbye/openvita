@@ -480,9 +480,13 @@ def doc_view(t):
         f"Only for {c}. The assistant reads this together with the shared instructions:", personal_files(c))}
 
 
-def template_list(c):
-    """[{name, label, description, source}] for every template this person can use."""
-    return [{k: t[k] for k in ("name", "label", "description", "source")} for t in templates.discover(c)[0]]
+def template_list(c, current=""):
+    """[{name, label, description, source, markup}] for the templates this person can use; with the
+    CV's current template, only those that style the same markup (the others cannot take its content)."""
+    found = templates.discover(c)[0]
+    cur = next((t for t in found if t["name"] == current), None)
+    return [{k: t[k] for k in ("name", "label", "description", "source", "markup")} for t in found
+            if not cur or t["markup"] == cur["markup"]]
 
 
 def tpl_preview(k, name):
@@ -1511,7 +1515,8 @@ class Handler(BaseHTTPRequestHandler):
                 body["formver"] = {n: max((os.path.getmtime(os.path.join(d, "forms", n + ext))
                                            for ext in (".docx", ".json") if os.path.isfile(os.path.join(d, "forms", n + ext))))
                                    for n in forms(t)}
-                body["template"], body["templates"] = current_template(t), template_list(c)
+                body["template"] = current_template(t)
+                body["templates"] = template_list(c, body["template"])
                 body["root"] = ROOT
                 body["paths"] = {"cv": cv_files(t), "job-ad.md": cv_files(t, "job-ad.md"), "notes.md": cv_files(t, "notes.md"),
                                  "pdf": [os.path.relpath(pdf_path(t), ROOT)]}
@@ -1654,8 +1659,8 @@ class Handler(BaseHTTPRequestHandler):
             save_revision(c, f"Before switching {t.split('/', 1)[1]} to template {tpl}")
             try:
                 draft.switch(c, src(t), tpl)
-            except SystemExit:
-                return self.json({"ok": False, "message": say(c, "not-switched")})
+            except SystemExit as e:
+                return self.json({"ok": False, "message": str(e) or say(c, "not-switched")})
             return self.json({"ok": True, "message": say(c, "switched", tpl=templates.find(tpl, c)["label"])})
         if path == "/draft":
             t = str(data.get("t", ""))

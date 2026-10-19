@@ -266,6 +266,9 @@ def write(c, variant="generic", app="", template="", lang="", force=False):
     t = templates.find(name, c)
     if not t:
         raise SystemExit(f"unknown template {name!r} (see make templates C={c})")
+    if t["markup"] != templates.MARKUP:
+        raise SystemExit(f"{t['label']} styles its own markup ({t['markup']}), so a draft cannot be written for it; "
+                         f"draft with a template in openvita markup (TEMPLATE=classic), or edit this CV by hand")
     text = stamp(build(c, t, lang if lang in WORDS else profiles.language(c)))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
@@ -278,6 +281,10 @@ def switch(c, path, name):
     so the brand's contact details follow; anything edited keeps its text (templates.use)."""
     if not templates.find(name, c):
         raise SystemExit(f"unknown template {name!r} (see make templates C={c})")
+    with open(path, encoding="utf-8") as fh:
+        why = templates.compatible(c, fh.read(), templates.find(name, c))
+    if why:
+        raise SystemExit(why)
     if os.path.isfile(path) and not edited(path):
         parts = os.path.relpath(path, profiles.person_dir(c)).split(os.sep)
         if len(parts) == 3 and parts[0] in ("base", "applications"):
