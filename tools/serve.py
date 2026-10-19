@@ -625,7 +625,8 @@ PAGE = r"""<!doctype html>
   #people { right: 18px; top: calc(100% - 6px); min-width: 220px; }
   aside { overflow: auto; background: var(--panel); }
   #side { grid-area: side; border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; }
-  #rail { grid-area: rail; border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  #rail { grid-area: rail; border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 10px;
+          overflow: hidden; min-height: 0; }
   #main { grid-area: main; display: grid; grid-template-rows: auto auto 1fr; min-width: 0; min-height: 0; }
   .grp { display: flex; align-items: center; gap: 7px; margin: 14px 8px 4px; color: var(--mut); font-size: 11px;
          letter-spacing: .07em; text-transform: uppercase; }
@@ -640,11 +641,11 @@ PAGE = r"""<!doctype html>
   .health span { color: var(--mut); } .health .q { color: color-mix(in srgb, var(--warn) 75%, var(--fg)); }
   .rh { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; margin: 0; }
   .rh small { margin-left: auto; color: var(--mut); font-weight: 400; font-size: 12px; }
-  #cmlist { display: flex; flex-direction: column; gap: 8px; }
+  #cmlist { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: auto; margin-right: -8px; padding-right: 8px; }
   #cmlist .cm { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 10px 12px; }
   #cmlist .cm + .cm { border-top: 1px solid var(--line); }
   #cmlist .cm .q { white-space: normal; }
-  #tplsec { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+  #tplsec { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--line); flex: none; }
   #cmbtn { display: none; }
   .item:hover { background: #232328; }
   .item.on { background: var(--hl); color: #fff; }
@@ -847,12 +848,12 @@ __ICONS__
   <div id="view"></div>
 </main>
 <aside id="rail">
-  <p class="rh"><span data-t="comments"></span><span class="badge" id="cmcount" hidden></span></p>
-  <div id="cmlist"></div>
   <div id="tplsec" class="cvonly">
     <p class="rh" data-tt="templateLead"><span data-t="template"></span><small id="tpllabel"></small></p>
     <div class="tplgrid" id="tplgrid"></div>
   </div>
+  <p class="rh"><span data-t="comments"></span><span class="badge" id="cmcount" hidden></span></p>
+  <div id="cmlist"></div>
 </aside>
 <div id="cbox"><div class="quote" id="cquote"></div>
   <textarea id="ctext" data-tp="commentPh"></textarea>
