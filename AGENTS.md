@@ -157,7 +157,9 @@ For each open item:
 - The person also edits the profile in the workbench. Re-read an entry right before you change it.
 - A profile in an OpenSelf home is uploaded encrypted with `./self push` there. Leave that to the
   person unless they ask.
-- `local/` stays on the person's machine and is gitignored. Never force-add anything from it, and
+- `local/` stays on the person's machine and is gitignored. The guard (`tools/guard.py`, installed
+  as git hooks by `make hooks`) refuses commits and pushes that carry local work. Never bypass it
+  (`--no-verify`), never force-add anything from `local/`, and
   never copy a person's, employer's or customer's details into shared files (guide/, templates/,
   tools/, the skill, README). A company's template lives in the company's own folder, found
   through `OPENVITA_TEMPLATES`, not in this repository.

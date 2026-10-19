@@ -21,7 +21,8 @@ It works for you on your own, and for people at a company that has its own CV lo
 - **Versions.** Your folder is its own git repository: every saved revision and every PDF you
   send can be found again.
 
-Everything stays on your machine. `local/` is ignored by git.
+Everything stays on your machine. `local/` is ignored by git, and a guard makes sure nothing
+personal is committed even by accident (see "Keeping local work local" below).
 
 ## Start
 
@@ -98,6 +99,22 @@ build/               generated PDFs and previews
 ```
 
 After cloning without `--recurse-submodules`: `git submodule update --init`.
+
+## Keeping local work local
+
+Your folders, CVs, job ads, profiles and your company's templates never belong in this repository.
+`.gitignore` keeps them out of `git add`, and the guard (`tools/guard.py`) catches the rest: a
+forced add, a copied file, a template folder dropped into `templates/`, a profile linked in as a
+submodule, or a name from your profile or your company's template in an ordinary file.
+
+- `make hooks` installs it as pre-commit and pre-push hooks. `make serve`, `make new-person` and
+  `make connect` install it too, so it is in place from the first use.
+- It reads what is private from this machine: every connected profile (names, email, phone,
+  employers, customers), every template outside the repository (its name and brand), and the words
+  you list in `local/forbidden.txt`, one per line, such as your employer's name.
+- CI runs `tools/guard.py --history` on every pull request, for the path rules.
+- Something meant to be shared that the guard refuses goes in `.openvita/allow`, one glob per line,
+  reviewed like any other change.
 
 ## Tests
 

@@ -52,6 +52,9 @@ Each folder in the list is either one template (it has `template.json` or `cv.cs
 templates. A company keeps its templates in its own (private) repository and points
 `OPENVITA_TEMPLATES` at the checkout. Nothing about the company goes into OpenVita.
 
+Never copy a company's template into this repository's `templates/`: the guard refuses it, and
+refuses any file that mentions a template's name or brand from outside the repository.
+
 `make templates C=<name>` lists what was found, and where from. A folder that is not a valid
 template is reported, never skipped silently.
 
