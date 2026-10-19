@@ -1,29 +1,110 @@
 # OpenVita
 
-An open CV builder on top of [OpenSelf](https://github.com/mortennordbye/openself). Your profile
-(who you are and everything you have done, in your own words) stays in one OpenSelf profile; OpenVita
-reads it and writes CVs from it, each one tailored to a role, a customer or a language, and each
-one traceable back to the profile entries it is built from.
+An open CV builder on top of [OpenSelf](https://github.com/mortennordbye/openself). Your career
+lives in an OpenSelf profile (one Markdown file per job and assignment, with its own history).
+OpenVita turns it into CVs: a first draft straight from the profile, then a browser workbench
+where you read the CV, select text and say what to change, while an assistant such as Claude Code
+does the edits. Bring your own template, or your company's.
 
-Status: just started. Nothing to run yet.
+It works for you on your own, and for people at a company that has its own CV look.
 
-## Plan
+## What you get
 
-- Read a profile with the `openself` library (a git submodule here, standard library only).
-- Choose what goes in: which assignments, which technologies, how much detail, respecting the
-  profile's rules (`customer_public`, `omit` flags and the private `reference` section are never
-  shown).
-- Write the CV as Markdown, HTML and PDF from templates you can change.
-- Keep every CV as a version, linked to the profile revision it came from.
+- **A draft from your profile.** `make draft` builds a complete CV from the profile, following its
+  rules: customers are named only when the profile says they may be, private references and
+  anything flagged `omit` stay out, removed entries are never used.
+- **A workbench** (`make serve`) on 127.0.0.1: your CVs as real PDF text, rebuilt on every save,
+  revisions, applications with the job ad next to the CV, comments for the assistant, Word forms
+  filled in place, and your profile in OpenSelf's own editor.
+- **Templates you can bring.** Three built in (`classic`, `sidebar`, `minimal`), and any folder of
+  your own or your company's. A template is only the look; the same CV moves between them.
+- **Versions.** Your folder is its own git repository: every saved revision and every PDF you
+  send can be found again.
+
+Everything stays on your machine. `local/` is ignored by git.
+
+## Start
+
+Requirements: Python 3.10 or newer, git, and Docker (PDFs render in a container, so nothing else
+needs installing). With WeasyPrint and poppler installed locally, `OPENVITA_RENDER=local` skips
+Docker.
+
+```sh
+git clone --recurse-submodules https://github.com/mortennordbye/openvita.git
+cd openvita
+make new-person C=ola PROFILE=openself/example   # try it with the fictional example profile
+make serve C=ola
+```
+
+With your own profile:
+
+```sh
+make new-person C=kari PROFILE=~/my-openself     # an OpenSelf home or a profile folder
+make serve C=kari
+```
+
+No profile yet? `make new-person C=kari` creates an empty one. Fill it in the workbench (the
+Profile view), or let an assistant interview you: put your old CVs and a LinkedIn PDF in
+`local/kari/private/intake/` and run `/onboard` in Claude Code.
+
+## Templates
+
+```sh
+make templates C=kari                       # what you can use, and where each comes from
+make draft C=kari TEMPLATE=sidebar          # draft in another template
+make use-template C=kari TEMPLATE=minimal   # switch an existing CV
+```
+
+Your own or your company's templates are folders with `template.json` and `cv.css`. Point
+OpenVita at them in either of two ways:
+
+- for everyone on this machine: `export OPENVITA_TEMPLATES=~/work/cv-templates`
+- for one person: `"templates": ["~/work/cv-templates"]` in `local/<name>/openvita.json`
+
+A company template can carry a brand: logo, name, web address, a work email pattern and an office
+address. Those go in the CV only while that template is used. See [TEMPLATES.md](TEMPLATES.md),
+and [examples/templates/example-company](examples/templates/example-company) for a complete one.
+
+## Applications
+
+```sh
+make new C=kari APP=2026-11-acme-platform   # or "New" under Applications in the workbench
+make cv  C=kari APP=2026-11-acme-platform   # PDF in build/kari/applications/...
+make release C=kari APP=2026-11-acme-platform   # keep the PDF you sent, numbered and tagged
+```
+
+Paste the job ad when you create the application, then "Tailor CV" asks the assistant to write it
+from your profile. The top of the [Makefile](Makefile) lists every command.
+
+## Working with an assistant
+
+The workbench never calls an AI itself. It writes requests and comments to
+`local/<name>/feedback.json`, and an assistant session reads them (`make watch-feedback C=<name>`
+prints each one as it arrives). [AGENTS.md](AGENTS.md) is the assistant's rule book, and the
+guides in [guide/](guide/) say how CVs are written and how the profile is read. The rule that
+matters most: the profile is the only source of facts. A claim it does not support is weakened or
+removed, never added to the profile to make it fit.
 
 ## Layout
 
 ```
-openself/    the OpenSelf library and format (git submodule)
+openself/            OpenSelf (git submodule): the profile format, library and web UI
+templates/           built-in templates, and _shared/ fonts any template may use
+examples/templates/  a fictional company's template, to copy
+tools/               serve.py (workbench), draft.py, templates.py, render.py, profiles.py, ...
+guide/               how CVs are written, how the profile is read
+local/               your folders (gitignored): local/<name>/ per person
+build/               generated PDFs and previews
 ```
 
-After cloning: `git submodule update --init`.
+After cloning without `--recurse-submodules`: `git submodule update --init`.
+
+## Tests
+
+`make test` runs OpenSelf's tests and OpenVita's own (`tools/tests`), with the host Python and
+no Docker.
 
 ## License
 
-MIT.
+MIT, see [LICENSE](LICENSE). Bundled: Metropolis (public domain), Albert Sans (SIL OFL 1.1),
+Font Awesome Free 5 (SIL OFL 1.1 for the fonts), pdf.js (Apache 2.0), marked (MIT).
