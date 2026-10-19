@@ -44,7 +44,8 @@ acme/
 
 In this order, and the first template with a given name wins:
 
-1. the `templates` list in `local/<name>/openvita.json`, for one person,
+1. `local/<name>/templates/` and then the `templates` list in `local/<name>/openvita.json`, for one
+   person (a folder in an OpenSelf home is encrypted with the rest, see the README),
 2. `OPENVITA_TEMPLATES`, folders separated by `:`, for everyone on the machine,
 3. `templates/` in this repository.
 

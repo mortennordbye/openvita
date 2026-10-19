@@ -23,8 +23,10 @@ tools/                  serve.py (workbench), draft.py (CV from the profile), te
                         each person's profile), profile_api.py, watch-feedback.py, fill-docx.py,
                         how-it-works.html, static/, vendor/ (pdf.js and marked), tests/
 local/                  everything personal, gitignored, one folder per person (`make new-person`)
-  <name>/                 its own git repository
+  <name>/                 its own git repository; after `make connect-home` a link into the
+                          person's OpenSelf home (<home>/cv/), encrypted there as cv.age
     openvita.json           {"profile": path, "templates": [paths], "language": "en"|"nb", "template": name}
+    templates/              the person's own templates (searched first)
     AGENTS.md               the person's standing wishes
     tuning.md               lessons learned from their feedback
     feedback.json           comments and requests from the workbench, kept as history
@@ -155,8 +157,9 @@ For each open item:
 - Every change to a profile is committed to its own history (`make profile-commit`, actor
   `claude`), one change per commit, so the person can see and undo it.
 - The person also edits the profile in the workbench. Re-read an entry right before you change it.
-- A profile in an OpenSelf home is uploaded encrypted with `./self push` there. Leave that to the
-  person unless they ask.
+- A profile in an OpenSelf home is uploaded encrypted with `./self push` there, and so is a person's
+  folder connected with `make connect-home` (the vault `cv/`, encrypted as `cv.age`). Leave
+  uploading to the person unless they ask.
 - `local/` stays on the person's machine and is gitignored. The guard (`tools/guard.py`, installed
   as git hooks by `make hooks`) refuses commits and pushes that carry local work. Never bypass it
   (`--no-verify`), never force-add anything from `local/`, and

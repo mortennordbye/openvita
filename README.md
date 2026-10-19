@@ -100,6 +100,27 @@ build/               generated PDFs and previews
 
 After cloning without `--recurse-submodules`: `git submodule update --init`.
 
+## Encrypted, versioned and on every machine: your OpenSelf home
+
+If your profile lives in an OpenSelf home (made from
+[openself-template](https://github.com/mortennordbye/openself-template)), keep your OpenVita work
+there too:
+
+```sh
+make connect-home C=kari HOME=~/my-openself     # once per person
+```
+
+Your folder (CVs, applications, job ads, released PDFs, photo, comments, tuning and your own
+`templates/`) moves into a vault of the home, `~/my-openself/cv/`, with its history, and
+`local/kari` becomes a link to it. The profile is the home's own. From then on, `make push` in the
+home encrypts every version of it into `cv.age` next to `profile.age`, and on another machine
+`make pull` there followed by the same `make connect-home` brings it all back. Nothing in it is
+ever readable in the repository. `build/` is not included: PDFs are rebuilt from the CVs.
+
+Your own templates can live in `local/kari/templates/`, which OpenVita searches first, so they are
+encrypted with the rest. A template your employer owns may not be yours to copy, even encrypted:
+keep that one in the company's own repository and point `OPENVITA_TEMPLATES` at it.
+
 ## Keeping local work local
 
 Your folders, CVs, job ads, profiles and your company's templates never belong in this repository.

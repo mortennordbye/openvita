@@ -9,7 +9,8 @@ A CV links it as `template:<name>/cv.css` and its images as `template:<name>/ass
 CV does not care where the template lives. Folders are searched in this order, and the first
 template with a given name wins:
 
-1. the "templates" list in local/<c>/openvita.json (a person's own, or their company's),
+1. local/<c>/templates/, then the "templates" list in local/<c>/openvita.json (a person's own,
+   or their company's),
 2. OPENVITA_TEMPLATES, folders separated by ":" (for example a company's template repository),
 3. templates/ in this repository.
 
@@ -40,6 +41,9 @@ def search_path(c=""):
     out = []
     if c:
         try:
+            own = os.path.join(profiles.real_dir(c), "templates")
+            if os.path.isdir(own):
+                out.append((own, f"local/{c}/templates"))
             out += [(profiles.resolve(c, p), f"local/{c}/{profiles.CONFIG}") for p in profiles.config(c).get("templates") or []]
         except ValueError:
             pass

@@ -34,10 +34,14 @@ LOCAL_MODE = os.environ.get("OPENVITA_RENDER") == "local"
 
 def mounts(c):
     """{host folder: container folder} for the repository, local/ and every template C can use."""
-    m = {ROOT: "/work"}
+    m = {os.path.realpath(ROOT): "/work"}
     local = os.path.realpath(profiles.LOCAL)
-    if os.path.commonpath([ROOT, local]) != ROOT:
+    if os.path.commonpath([os.path.realpath(ROOT), local]) != os.path.realpath(ROOT):
         m[local] = "/work/local"
+    for p in sorted(os.listdir(local)) if os.path.isdir(local) else []:
+        real = os.path.realpath(os.path.join(local, p))
+        if os.path.isdir(real) and os.path.commonpath([local, real]) != local:
+            m[real] = f"/person/{p}"  # local/<p> links into an OpenSelf home
     m[os.path.realpath(templates.SHARED)] = "/tpl/_shared"
     for t in templates.discover(c)[0]:
         m[t["dir"]] = f"/tpl/{t['name']}"
@@ -48,6 +52,7 @@ def inside(m, path):
     """The container path of a host path, or None when it is not mounted."""
     path = os.path.realpath(path)
     best = max((h for h in m if os.path.commonpath([h, path]) == h and not m[h].startswith("/tpl/")), key=len, default=None)
+    # longest match wins, so a person's linked folder beats /work
     return None if best is None else m[best] + path[len(best):]
 
 
