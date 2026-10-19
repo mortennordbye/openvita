@@ -1,0 +1,5 @@
+{
+  "label": "Minimal",
+  "description": "One column with generous white space and one accent colour, set by --accent in cv.css.",
+  "languages": ["en", "nb"]
+}

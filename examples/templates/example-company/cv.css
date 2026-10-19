@@ -1,0 +1,52 @@
+/* Example company template, for a fictional consultancy. A company's own template is a folder like
+   this one: template.json (label, description, brand), cv.css and its assets. It styles the same
+   markup as the built-in templates (TEMPLATES.md), so a CV moves between them freely.
+   The shared fonts are reachable as ../_shared/ wherever the folder lives; a company can also ship
+   its own fonts in the folder and load them with @font-face. */
+@import url(../_shared/fonts.css);
+
+:root { --brand: #0b6e69; --brand-soft: #e3f1f0; --ink: #1d2626; --mut: #5f6b6b; --line: #cfdcdb; }
+
+@page { size: A4; margin: 40pt 46pt 44pt 46pt;
+        @bottom-left { content: "Brightwater Consulting"; font: 7pt Body; color: var(--mut); }
+        @bottom-right { content: counter(page) " / " counter(pages); font: 7pt Body; color: var(--mut); } }
+
+html { font-family: Body; font-size: 9pt; line-height: 1.45; color: var(--ink); }
+body { margin: 0; }
+h1, h2, h3, p, ul { margin: 0; padding: 0; font-weight: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* the brand row on top of page 1 */
+.brand { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10pt; margin-bottom: 18pt;
+         border-bottom: 2pt solid var(--brand); }
+.brand-logo { height: 24pt; }
+.brand-name { display: none; } /* the logo already says it */
+.brand-url { color: var(--brand); font-weight: 600; font-size: 8.4pt; }
+
+.photo { float: right; width: 74pt; height: 74pt; border-radius: 8pt; overflow: hidden; margin-left: 14pt; }
+.photo img { width: 100%; height: 100%; object-fit: cover; }
+
+.header { background: var(--brand-soft); padding: 12pt 14pt; border-radius: 6pt; margin-bottom: 8pt; }
+.name { font-family: Head; font-weight: 700; font-size: 21pt; line-height: 1.1; color: var(--brand); }
+.role { font-family: Head; font-weight: 600; font-size: 10pt; margin-top: 3pt; }
+.contact { margin-top: 7pt; font-size: 8.4pt; }
+.contact p { display: inline; margin-right: 12pt; }
+.contact .icon { color: var(--brand); margin-right: 4pt; font-size: 7.6pt; }
+
+h2.section, .sidebar h2, h2.page-title { font-family: Head; font-weight: 700; font-size: 10pt; color: var(--brand);
+  margin: 16pt 0 6pt; break-after: avoid; }
+
+.sidebar ul { list-style: none; }
+.sidebar li { display: inline-block; background: var(--brand-soft); color: var(--brand); border-radius: 3pt; padding: 0 5pt; margin: 0 3pt 3pt 0; font-size: 8pt; }
+.sidebar.social p { display: inline; margin-right: 12pt; }
+.sidebar .icon { color: var(--brand); margin-right: 4pt; }
+
+.entry { position: relative; break-inside: avoid; padding-left: 10pt; border-left: 2pt solid var(--line); }
+.entry + .entry { margin-top: 12pt; }
+.entry .date { float: right; color: var(--mut); font-size: 8pt; margin-left: 10pt; }
+.entry h3 { font-family: Head; font-weight: 700; font-size: 9.6pt; }
+.entry .org { color: var(--brand); font-weight: 600; }
+.entry .body { margin-top: 3pt; }
+.entry .body p + p, .entry .body p + ul, .entry .body ul + p { margin-top: 4pt; }
+.entry .body ul { padding-left: 11pt; }
+.tags { margin-top: 3pt; font-size: 8pt; color: var(--mut); }

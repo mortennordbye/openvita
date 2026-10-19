@@ -1,0 +1,20 @@
+/* Shared fonts. A template imports this with @import url(../_shared/fonts.css); families:
+   Head (Metropolis), Body (Albert Sans), FA (Font Awesome solid), FABrands (Font Awesome brands). */
+@font-face { font-family: Head; font-weight: 400; src: url(fonts/Metropolis-400.woff); }
+@font-face { font-family: Head; font-weight: 600; src: url(fonts/Metropolis-600.woff); }
+@font-face { font-family: Head; font-weight: 700; src: url(fonts/Metropolis-700.woff); }
+@font-face { font-family: Body; font-weight: 400; src: url(fonts/AlbertSans-400.woff); }
+@font-face { font-family: Body; font-weight: 500; src: url(fonts/AlbertSans-500.woff); }
+@font-face { font-family: Body; font-weight: 600; src: url(fonts/AlbertSans-600.woff); }
+@font-face { font-family: Body; font-weight: 700; src: url(fonts/AlbertSans-700.woff); }
+@font-face { font-family: FA; font-weight: 900; src: url(fonts/FontAwesome5Free-Solid-900.otf); }
+@font-face { font-family: FABrands; src: url(fonts/FontAwesome5Brands-Regular-400.otf); }
+
+/* Icons used by the shared markup: <span class="icon fa-NAME"></span> */
+.icon { font-family: FA; font-weight: 900; font-style: normal; }
+.fa-phone::before { content: "\f879"; }
+.fa-envelope::before { content: "\f0e0"; }
+.fa-marker::before { content: "\f3c5"; }
+.fa-link::before { content: "\f0c1"; }
+.fa-linkedin::before { content: "\f08c"; font-family: FABrands; font-weight: 400; }
+.fa-github::before { content: "\f09b"; font-family: FABrands; font-weight: 400; }
