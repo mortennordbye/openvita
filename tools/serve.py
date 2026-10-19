@@ -143,6 +143,26 @@ def pdf_path(k):
     return os.path.join(ROOT, "build", c, path, f"{c}-{path.split('/', 1)[1]}.pdf")
 
 
+_stats = {}
+
+
+def profile_stats(c):
+    """{employments, assignments, questions} of C's profile, cached for ten seconds."""
+    hit = _stats.get(c)
+    if hit and time.time() - hit[0] < 10:
+        return hit[1]
+    val = None
+    if profiles.exists(c):
+        try:
+            p = pmodel.load_profile(profiles.profile_dir(c))
+            val = {"employments": len(p.of_type("employment")), "assignments": len(p.of_type("assignment")),
+                   "questions": sum(1 for e in p.entries.values() for fl in pmodel.flags(e.body)[0] if fl.open)}
+        except (OSError, ValueError):
+            val = None
+    _stats[c] = (time.time(), val)
+    return val
+
+
 def tree():
     out = []
     base = LOCAL
@@ -159,7 +179,8 @@ def tree():
         generic, cases = names("base"), names("applications", True)
         profile = "profile" if profiles.exists(c) else ""
         if generic or cases or profile or os.path.isfile(os.path.join(base, c, profiles.CONFIG)):
-            out.append({"person": c, "base": generic, "apps": cases, "profile": profile, "lang": lang_of(c)})
+            out.append({"person": c, "base": generic, "apps": cases, "profile": profile, "lang": lang_of(c),
+                        "stats": profile_stats(c)})
     return out
 
 
@@ -570,53 +591,83 @@ PAGE = r"""<!doctype html>
 <link rel="stylesheet" href="/openself/app.css">
 <link rel="stylesheet" href="/static/profile.css">
 <style>
-  :root { color-scheme: dark; --bg: #1f1f23; --panel: #17171a; --line: #303036; --fg: #e6e6ea;
-          --mut: #8e8e98; --acc: #6aa4f8; --hl: rgba(106,164,248,.16); --warn: #f0ad4e; --bad: #e5534b; --ok: #4caf50; }
+  /* OpenSelf's palette (openself/openself/web/static/app.css), so the two read as one app. */
+  :root { color-scheme: dark; --bg: #1f1f23; --panel: #17171a; --line: #303036; --fg: #e6e6ea; --mut: #8e8e98;
+          --acc: #6aa4f8; --acc2: #3fc1a5; --hl: rgba(106,164,248,.16); --hover: rgba(230,230,234,.07);
+          --warn: #f0ad4e; --bad: #e5534b; --ok: #4caf50; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { height: 100%; margin: 0; }
-  body { display: grid; grid-template-columns: 268px 1fr; background: var(--bg); color: var(--fg);
-         font: 13px/1.4 -apple-system, system-ui, sans-serif; }
+  /* Layout: a header across, then the person's list, the CV, and a rail with comments and templates. */
+  body { display: grid; grid-template: "top top top" 56px "side main rail" 1fr / 264px minmax(0, 1fr) 320px;
+         height: 100vh; background: var(--bg); color: var(--fg); font: 13px/1.4 -apple-system, system-ui, sans-serif; }
   svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7;
           stroke-linecap: round; stroke-linejoin: round; }
-  aside { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 14px 10px; }
-  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: .02em; margin: 0 6px 14px; }
-  .brand img { width: 18px; height: 18px; }
-  .who { display: flex; align-items: center; gap: 8px; margin: 14px 6px 4px; font-weight: 600; text-transform: capitalize; }
-  .grp { display: flex; align-items: center; gap: 7px; margin: 12px 6px 3px; color: var(--mut); font-size: 11px;
+  #top { grid-area: top; display: flex; align-items: center; gap: 12px; padding: 0 18px; background: var(--panel);
+         border-bottom: 1px solid var(--line); min-width: 0; position: relative; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .logo { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--acc);
+          color: #0b1220; font-size: 11px; font-weight: 800; }
+  #nav { display: flex; gap: 2px; margin-left: 14px; min-width: 0; overflow: hidden; }
+  .nv { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; color: var(--mut); padding: 7px 12px;
+        border-radius: 6px; font: inherit; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+  .nv:hover { color: var(--fg); background: var(--hover); } .nv.on { color: #fff; background: var(--hover); font-weight: 600; }
+  .nv .badge { background: color-mix(in srgb, var(--warn) 18%, var(--panel)); color: color-mix(in srgb, var(--warn) 75%, var(--fg)); }
+  #who { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); color: var(--fg);
+         border-radius: 99px; padding: 3px 10px 3px 3px; font: inherit; cursor: pointer; white-space: nowrap; text-transform: capitalize; }
+  #who:hover { background: var(--hover); }
+  .av { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #0b1220; font-weight: 700;
+        font-size: 11px; background: linear-gradient(135deg, var(--acc), var(--acc2)); text-transform: uppercase; }
+  #people { right: 18px; top: calc(100% - 6px); min-width: 220px; }
+  aside { overflow: auto; background: var(--panel); }
+  #side { grid-area: side; border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; }
+  #rail { grid-area: rail; border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  #main { grid-area: main; display: grid; grid-template-rows: auto auto 1fr; min-width: 0; min-height: 0; }
+  .grp { display: flex; align-items: center; gap: 7px; margin: 14px 8px 4px; color: var(--mut); font-size: 11px;
          letter-spacing: .07em; text-transform: uppercase; }
+  .grp:first-child { margin-top: 4px; }
   .item { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; background: none; border: 0;
-          color: var(--fg); padding: 6px 8px; border-radius: 6px; cursor: pointer; font: inherit; }
+          color: var(--fg); padding: 8px; border-radius: 6px; cursor: pointer; font: inherit; }
+  .item.two { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .item.two small { margin-left: 0; }
+  .health { margin-top: auto; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--bg);
+            text-align: left; color: var(--fg); font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+  .health:hover { border-color: #4a4a52; } .health b { font-size: 13px; margin-bottom: 4px; }
+  .health span { color: var(--mut); } .health .q { color: color-mix(in srgb, var(--warn) 75%, var(--fg)); }
+  .rh { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; margin: 0; }
+  .rh small { margin-left: auto; color: var(--mut); font-weight: 400; font-size: 12px; }
+  #cmlist { display: flex; flex-direction: column; gap: 8px; }
+  #cmlist .cm { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 10px 12px; }
+  #cmlist .cm + .cm { border-top: 1px solid var(--line); }
+  #cmlist .cm .q { white-space: normal; }
+  #tplsec { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+  #cmbtn { display: none; }
   .item:hover { background: #232328; }
   .item.on { background: var(--hl); color: #fff; }
   .item.on svg { color: var(--acc); }
   .item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item small { margin-left: auto; color: var(--mut); font-size: 11px; white-space: nowrap; flex: none; }
-  .col { display: grid; grid-template-rows: auto auto 1fr; min-width: 0; height: 100vh; }
   .bar { display: flex; gap: 8px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line);
          background: var(--panel); position: relative; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
   .dot.busy { background: var(--warn); } .dot.err { background: var(--bad); }
   #msg { color: var(--mut); margin-right: 6px; white-space: nowrap; }
   .chip { font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--warn); color: var(--warn); white-space: nowrap; }
-  .btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--line);
-         color: var(--fg); padding: 4px 10px; border-radius: 6px; cursor: pointer; font: inherit; text-decoration: none; }
-  .btn:hover { background: #232328; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line);
+         color: var(--fg); padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: var(--hover); }
   .btn.on { background: var(--acc); border-color: var(--acc); color: #0b1220; }
   .sp { flex: 1; }
-  /* Header: row 1 says where you are and what you can do, row 2 what you look at. */
-  .top { background: var(--panel); border-bottom: 1px solid var(--line); container-type: inline-size; }
-  .top .btn, #tabs, .where #msg { white-space: nowrap; flex: none; }
-  .top .find input { width: 150px; }
-  /* Narrow window: secondary buttons keep their icon, the tooltip has the name. */
-  @container (max-width: 1180px) { .top .row1 .btn:not(.primary) .lbl, .top #tplbtn .lbl { display: none; } .top .find input { width: 100px; } }
-  @container (max-width: 900px) { .where #msg, #pathbar { display: none; } .tab:not(.on) .tl { display: none; } }
-  .top .row1, .top .row2 { display: flex; align-items: center; gap: 8px; padding: 0 14px; position: relative; min-width: 0; }
-  .top .row1 { height: 48px; } .top .row2 { height: 40px; border-top: 1px solid #222227; background: #19191d; }
-  .where { display: flex; align-items: center; gap: 9px; min-width: 0; flex: 0 1 auto; overflow: hidden; }
-  #ttl { font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .where #msg { font-size: 12px; }
-  .btn.primary { background: linear-gradient(180deg, #9a72f5, #7d55e6); border-color: #9a72f5; color: #fff; font-weight: 600; }
-  .btn.primary:hover { background: linear-gradient(180deg, #a884f7, #8a63ec); }
+  /* The toolbar over the CV: what you look at, its state, what you can do. Narrow: icons only. */
+  #bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--line);
+         position: relative; container-type: inline-size; min-width: 0; }
+  #bar .btn, #tabs { flex: none; }
+  .state { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--mut); white-space: nowrap; }
+  @container (max-width: 1100px) { #bar #pathbar { display: none; } }
+  @container (max-width: 640px) { #bar .btn:not(.primary) .lbl { display: none; } }
+  .btn.primary { background: var(--acc); border-color: var(--acc); color: #0b1220; font-weight: 600; }
+  .btn.primary:hover { background: color-mix(in srgb, var(--acc) 85%, #fff); }
+  .btn.second { border-color: color-mix(in srgb, var(--acc2) 60%, var(--line)); color: color-mix(in srgb, var(--acc2) 80%, var(--fg)); }
   .btn.ghost { border-color: transparent; color: var(--mut); } .btn.ghost:hover { color: var(--fg); }
   .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-left: 2px; }
   #savebtn:has(.pip:not([hidden])) { border-color: color-mix(in srgb, var(--ok) 60%, transparent); background: color-mix(in srgb, var(--ok) 14%, transparent); }
@@ -632,15 +683,14 @@ PAGE = r"""<!doctype html>
   .mi { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: 0; color: var(--fg); text-decoration: none;
         padding: 7px 9px; border-radius: 6px; cursor: pointer; font: inherit; text-align: left; flex-wrap: wrap; }
   .mi:hover { background: #26262a; } .mi small { flex-basis: 100%; padding-left: 25px; color: var(--mut); font-size: 11px; }
-  .row1 .pop { top: 100%; right: 14px; } .row2 .pop { top: 100%; right: 14px; left: auto; }
+  #bar .pop { top: 100%; right: 18px; }
   .tab .tl { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-  /* Document tabs: one segmented group, each kind with its own colour. */
-  #tabs { display: inline-flex; gap: 2px; padding: 2px; background: #101012; border: 1px solid var(--line);
-          border-radius: 9px; white-space: nowrap; flex: none; }
+  /* Document tabs: segmented like OpenSelf's, each kind keeps its colour on the icon. */
+  #tabs { display: inline-flex; gap: 2px; white-space: nowrap; }
   .tab { display: inline-flex; align-items: center; gap: 7px; background: none; border: 0; color: var(--mut);
-         padding: 3px 11px; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 500; }
-  .tab svg { color: var(--k); } .tab:hover { color: var(--fg); background: #1d1d22; }
-  .tab.on { color: #fff; background: color-mix(in srgb, var(--k) 26%, #18181c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k) 60%, transparent); }
+         padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13.5px; }
+  .tab svg { color: var(--k); } .tab:hover { color: var(--fg); background: var(--hover); }
+  .tab.on { color: #fff; background: var(--hover); font-weight: 600; }
   .tab.k-cv { --k: #6aa4f8; } .tab.k-ad { --k: #f0ad4e; } .tab.k-note { --k: #b48cf2; } .tab.k-form { --k: #3fc1a5; }
   .bar { flex-wrap: wrap; }
   .find { display: flex; align-items: center; gap: 6px; background: #101012; border: 1px solid var(--line);
@@ -719,16 +769,22 @@ PAGE = r"""<!doctype html>
   dialog .row .msg { margin-right: auto; color: var(--warn); }
   .chip.gen { border-color: var(--acc); color: var(--acc); }
   .tpl { background: #101012; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
-  .tplpop { width: 560px; padding: 12px; }
-  .tplpop h3 { margin: 0 0 4px; font-size: 13px; } .tplpop .lead { color: var(--mut); font-size: 12px; margin-bottom: 10px; }
-  .tplgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-  .tplcard { display: flex; flex-direction: column; gap: 6px; text-align: left; background: #1a1a1e; border: 1px solid var(--line);
-             border-radius: 10px; padding: 8px; color: var(--fg); cursor: pointer; font: inherit; }
-  .tplcard:hover { border-color: #55555e; } .tplcard.on { border-color: var(--acc); background: var(--hl); }
-  .tplcard .thumb { aspect-ratio: 210 / 297; background: #2a2a31 center / cover no-repeat; border-radius: 4px; overflow: hidden; display: block; }
+  .tplgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .tplcard { display: flex; flex-direction: column; gap: 5px; text-align: left; background: none; border: 0; padding: 0;
+             color: var(--fg); cursor: pointer; font: inherit; font-size: 11.5px; min-width: 0; }
+  .tplcard .thumb { aspect-ratio: 210 / 297; background: #2a2a31; border-radius: 6px; overflow: hidden; display: block;
+                    border: 1px solid var(--line); }
+  .tplcard:hover .thumb { border-color: #55555e; } .tplcard.on .thumb { border: 2px solid var(--acc); }
   .tplcard .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; background: #fff; }
-  .tplcard b { font-size: 13px; } .tplcard span { color: var(--mut); font-size: 11.5px; line-height: 1.35; }
-  .tplcard .now { color: var(--acc); font-weight: 600; }
+  .tplcard b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tplcard.on b { color: var(--acc); font-weight: 600; }
+  /* Narrow window: the rail becomes a panel the Comments button opens. */
+  @media (max-width: 1180px) {
+    body { grid-template-columns: 220px minmax(0, 1fr) 0; }
+    #rail { position: fixed; right: 0; top: 56px; bottom: 0; width: 320px; z-index: 8; display: none; box-shadow: -10px 0 30px rgba(0,0,0,.4); }
+    body.rail-open #rail { display: flex; } #cmbtn { display: inline-flex; }
+  }
+  @media (max-width: 760px) { #nav .nv:not(.on) { display: none; } #side { display: none; } body { grid-template-columns: 0 minmax(0, 1fr) 0; } }
   body.doc .cvonly { display: none !important; }
   .how { max-width: 860px; margin: 0 auto; padding: 4px 24px 40px; line-height: 1.55; }
   .how h1 { font-size: 22px; margin: 6px 0 8px; } .how h2 { font-size: 15px; margin: 26px 0 8px; color: var(--acc); }
@@ -752,40 +808,48 @@ PAGE = r"""<!doctype html>
   #toast.show { opacity: 1; }
 </style></head><body>
 __ICONS__
+<header id="top">
+  <div class="brand"><span class="logo">OV</span>OpenVita</div>
+  <nav id="nav" aria-label="Views"></nav>
+  <span class="sp"></span>
+  <label class="find"><svg class="i"><use href="#i-search"/></svg><input id="q" type="search" data-tp="search"><span id="hits"></span></label>
+  <button id="who" aria-haspopup="true"><span class="av" id="whoav"></span><span id="whoname"></span><span class="caret">▾</span></button>
+  <div class="menupop" id="people" hidden></div>
+</header>
 <aside id="side"></aside>
-<div class="col">
-  <header class="top">
-    <div class="row1">
-      <div class="where"><span class="dot" id="dot"></span><b id="ttl"></b><span id="msg" data-t="loading"></span>
-        <span class="chip gen cvonly" id="genchip" data-t="genQueued" hidden></span></div>
-      <span class="sp"></span>
-      <label class="find"><svg class="i"><use href="#i-search"/></svg><input id="q" type="search" data-tp="search"><span id="hits"></span></label>
-      <button class="btn" id="cmbtn" data-tt="commentsTip"><svg class="i"><use href="#i-chat"/></svg><span class="lbl" data-t="comments"></span> <span class="badge" id="cmcount" hidden></span></button>
-      <button class="btn cvonly" id="revbtn" data-tt="revisionsTip"><svg class="i"><use href="#i-clock"/></svg><span class="lbl" data-t="revisions"></span></button>
-      <button class="btn cvonly" id="savebtn" data-tt="saveTip"><svg class="i"><use href="#i-save"/></svg><span class="lbl" data-t="save"></span><span class="pip" id="dirty" data-tt="unsaved" hidden></span></button>
-      <button class="btn primary cvonly" id="genbtn" data-tt="genTip" hidden><svg class="i"><use href="#i-spark"/></svg><span data-t="generate"></span></button>
-      <div class="pop" id="pop" hidden></div>
-      <div class="pop" id="cpop" hidden></div>
-    </div>
-    <div class="row2">
-      <span id="tabs" class="cvonly"></span>
-      <div id="pathbar"></div>
-      <span class="sp"></span>
-      <button class="btn ghost cvonly" id="draftbtn" data-tt="draftTip"><svg class="i"><use href="#i-data"/></svg><span class="lbl" data-t="draft"></span></button>
-      <button class="btn ghost cvonly" id="tplbtn" data-tt="templateTip"><svg class="i"><use href="#i-layout"/></svg><span class="lbl" id="tpllabel"></span></button>
-      <div class="menu cvonly"><button class="btn ghost" id="pdfbtn" data-tt="pdfTip"><svg class="i"><use href="#i-file"/></svg>PDF<span class="caret">▾</span></button>
-        <div class="menupop" id="pdfmenu" hidden>
-          <a class="mi" id="pdflink" href="#" target="_blank" draggable="true" data-tt="dragTip"><svg class="i"><use href="#i-open"/></svg><span data-t="openTab"></span></a>
-          <button class="mi mac" id="copybtn"><svg class="i"><use href="#i-copy"/></svg><span data-t="copyFile"></span><small data-t="copyHint"></small></button>
-          <button class="mi mac" id="finderbtn"><svg class="i"><use href="#i-folder"/></svg><span data-t="finder"></span></button>
-        </div></div>
-      <div class="pop tplpop" id="tplpop" hidden></div>
-    </div>
-  </header>
+<main id="main">
+  <div id="bar">
+    <span id="tabs" class="cvonly"></span>
+    <div class="state"><span class="dot" id="dot"></span><span id="msg" data-t="loading"></span>
+      <span class="chip gen cvonly" id="genchip" data-t="genQueued" hidden></span></div>
+    <div id="pathbar"></div>
+    <span class="sp"></span>
+    <button class="btn cvonly" id="draftbtn" data-tt="draftTip"><svg class="i"><use href="#i-data"/></svg><span class="lbl" data-t="draft"></span></button>
+    <button class="btn cvonly" id="revbtn" data-tt="revisionsTip"><svg class="i"><use href="#i-clock"/></svg><span class="lbl" data-t="revisions"></span></button>
+    <button class="btn cvonly" id="savebtn" data-tt="saveTip"><svg class="i"><use href="#i-save"/></svg><span class="lbl" data-t="saveRev"></span><span class="pip" id="dirty" data-tt="unsaved" hidden></span></button>
+    <button class="btn second cvonly" id="genbtn" data-tt="genTip" hidden><svg class="i"><use href="#i-spark"/></svg><span class="lbl" data-t="generate"></span></button>
+    <button class="btn" id="cmbtn" data-tt="commentsTip"><svg class="i"><use href="#i-chat"/></svg><span class="badge" id="cmcount2" hidden></span></button>
+    <div class="menu cvonly"><button class="btn primary" id="pdfbtn" data-tt="pdfTip"><svg class="i"><use href="#i-file"/></svg><span data-t="exportPdf"></span><span class="caret">▾</span></button>
+      <div class="menupop" id="pdfmenu" hidden>
+        <a class="mi" id="pdflink" href="#" target="_blank" draggable="true" data-tt="dragTip"><svg class="i"><use href="#i-open"/></svg><span data-t="openTab"></span></a>
+        <a class="mi" id="pdfdl" href="#" download><svg class="i"><use href="#i-save"/></svg><span data-t="download"></span></a>
+        <button class="mi mac" id="copybtn"><svg class="i"><use href="#i-copy"/></svg><span data-t="copyFile"></span><small data-t="copyHint"></small></button>
+        <button class="mi mac" id="finderbtn"><svg class="i"><use href="#i-folder"/></svg><span data-t="finder"></span></button>
+      </div></div>
+    <div class="pop" id="pop" hidden></div>
+  </div>
   <div id="banner"><svg class="i"><use href="#i-clock"/></svg><span id="bannertext"></span><span class="sp"></span>
     <button class="btn" id="backbtn"><svg class="i"><use href="#i-back"/></svg><span data-t="backToCurrent"></span></button></div>
   <div id="view"></div>
-</div>
+</main>
+<aside id="rail">
+  <p class="rh"><span data-t="comments"></span><span class="badge" id="cmcount" hidden></span></p>
+  <div id="cmlist"></div>
+  <div id="tplsec" class="cvonly">
+    <p class="rh" data-tt="templateLead"><span data-t="template"></span><small id="tpllabel"></small></p>
+    <div class="tplgrid" id="tplgrid"></div>
+  </div>
+</aside>
 <div id="cbox"><div class="quote" id="cquote"></div>
   <textarea id="ctext" data-tp="commentPh"></textarea>
   <div class="row"><button class="btn on" id="csend"><svg class="i"><use href="#i-chat"/></svg><span data-t="send"></span></button>
@@ -836,7 +900,9 @@ const T = {
     markDone: 'Mark as done', reopen: 'Open again', archive: 'Hide from the list (kept for later tuning)', shownFinder: 'Shown in Finder',
     pdfCopied: 'PDF copied, paste with Cmd+V', noProfileYet: 'No profile connected yet. Run `make connect C={0} PROFILE=<path>` to use an existing OpenSelf profile, or `make profile-init C={0}` to start one.',
     editedSinceDraft: 'This CV was edited after its last draft. Replace it with a new draft from the profile? The current version is saved as a revision first.',
-    drafting: 'Drafting from the profile ...', empty: 'No people yet. Run `make new-person C=<name>` (see README.md).' },
+    drafting: 'Drafting from the profile ...', saveRev: 'Save revision', exportPdf: 'Export PDF', download: 'Download',
+    cvs: 'CVs', people: 'People', health: 'Profile', healthCounts: '{0} assignments · {1} employments', healthQs: '{0} open questions',
+    healthNone: 'No profile connected yet', forAssistant: 'For the assistant', empty: 'No people yet. Run `make new-person C=<name>` (see README.md).' },
   nb: { loading: 'Laster ...', genQueued: 'Skreddersøm bestilt', search: 'Søk i teksten', comments: 'Kommentarer',
     commentsTip: 'Kommentarer til assistenten', revisions: 'Revisjoner', revisionsTip: 'Tidligere lagrede versjoner', save: 'Lagre',
     saveTip: 'Lagre ny revisjon', unsaved: 'Ulagrede endringer', generate: 'Skreddersy CV',
@@ -867,7 +933,9 @@ const T = {
     markDone: 'Merk som gjort', reopen: 'Åpne igjen', archive: 'Skjul fra lista (lagres fortsatt for senere tuning)', shownFinder: 'Vist i Finder',
     pdfCopied: 'PDF kopiert, lim inn med Cmd+V', noProfileYet: 'Ingen profil koblet til ennå. Kjør `make connect C={0} PROFILE=<sti>` for å bruke en OpenSelf-profil du har, eller `make profile-init C={0}` for å starte en.',
     editedSinceDraft: 'Denne CV-en er endret etter forrige utkast. Erstatte den med et nytt utkast fra profilen? Gjeldende versjon lagres som revisjon først.',
-    drafting: 'Lager fra profilen ...', empty: 'Ingen personer ennå. Kjør `make new-person C=<navn>` (se README.md).' },
+    drafting: 'Lager fra profilen ...', saveRev: 'Lagre revisjon', exportPdf: 'Eksporter PDF', download: 'Last ned',
+    cvs: 'CV-er', people: 'Personer', health: 'Profil', healthCounts: '{0} oppdrag · {1} ansettelser', healthQs: '{0} åpne spørsmål',
+    healthNone: 'Ingen profil koblet til ennå', forAssistant: 'For assistenten', empty: 'Ingen personer ennå. Kjør `make new-person C=<navn>` (se README.md).' },
 };
 let LANG = 'en';
 const tr = (k, ...a) => { let s = (T[LANG] || T.en)[k] ?? T.en[k] ?? k; a.forEach((v, i) => { s = s.split('{' + i + '}').join(v); }); return s; };
@@ -896,16 +964,39 @@ const toast = t => { const e = $('toast'); e.textContent = t; e.classList.add('s
 const q = (o) => new URLSearchParams(o).toString();
 
 function drawTitle() {
-  const on = document.querySelector('#side .item.on span'), label = on ? on.textContent : target;
-  $('ttl').textContent = isDoc(target) && target.startsWith('doc/') ? label : target.split('/')[0].replace(/^./, c => c.toUpperCase()) + ' / ' + label;
+  const on = document.querySelector('#side .item.on span, #nav .nv.on span');
+  document.title = (on ? on.textContent + ' · ' : '') + 'OpenVita';
+}
+// The CV last open per person, so "CVs" in the header goes back to it.
+const lastCv = c => { try { return localStorage.getItem('openvita.cv.' + c) || ''; } catch (e) { return ''; } };
+function cvOf(c) {
+  const p = tree.find(x => x.person === c); if (!p) return 'doc/how';
+  const last = lastCv(c), ok = last && (p.base.some(v => last === c + '/base/' + v) || p.apps.some(a => last === c + '/applications/' + a));
+  return ok ? last : p.base.length ? c + '/base/' + p.base[0] : p.apps.length ? c + '/applications/' + p.apps[0] : c + '/raw';
+}
+function drawNav() {
+  const nav = $('nav'), c = ctxC, p = tree.find(x => x.person === c); nav.replaceChildren();
+  const kind = target.startsWith('doc/how') ? 'how' : target.startsWith('doc/prompt') ? 'prompt' : target.endsWith('/raw') ? 'raw'
+    : target.endsWith('/personal') ? 'personal' : 'cv';
+  const mk = (k, label, to, badge) => { const b = el('button', 'nv' + (k === kind ? ' on' : '')); b.append(el('span', '', label));
+    if (badge) b.append(el('span', 'badge', badge)); b.onclick = () => setTarget(to); nav.append(b); };
+  if (p) { mk('cv', tr('cvs'), cvOf(c)); mk('raw', tr('profile'), c + '/raw', p.stats && p.stats.questions ? String(p.stats.questions) : ''); }
+  mk('prompt', tr('instructions'), 'doc/prompt'); mk('how', tr('howItWorks'), 'doc/how');
+  $('whoname').textContent = c || '—'; $('whoav').textContent = (c || '?').slice(0, 2);
+  const menu = $('people'); menu.replaceChildren(el('div', 'empty', tr('people')));
+  for (const x of tree) { const b = el('button', 'mi'); b.append(icon('user'), el('span', '', x.person));
+    b.onclick = () => { menu.hidden = true; ctxC = x.person; setTarget(cvOf(x.person)); }; menu.append(b); }
 }
 function setTarget(t) {
   target = t; tab = 'cv'; version = -1; rev = null; revs = null; $('pop').hidden = true; $('view').classList.remove('pfmode');
+  $('pathbar').replaceChildren(); $('pathbar').dataset.sig = '';
   if (!t.startsWith('doc/')) ctxC = t.split('/')[0];
   applyLang();
   document.body.classList.toggle('doc', isDoc(t));
   location.hash = encodeURIComponent(t); try { localStorage.setItem('openvita.target', t); } catch (e) { /* private window */ }
-  drawSide(); drawBanner(); $('view').scrollTop = 0; tick(true); loadComments(); drawTitle();
+  if (/\/(base|applications)\//.test(t)) { try { localStorage.setItem('openvita.cv.' + ctxC, t); } catch (e) { /* private window */ } }
+  document.body.classList.remove('rail-open');
+  drawSide(); drawNav(); drawBanner(); $('view').scrollTop = 0; tick(true); loadComments(); drawTitle();
   $('genbtn').hidden = !t.includes('/applications/');
 }
 // Markdown to safe HTML: marked, then a small sanitizer (pasted job ads can contain anything).
@@ -943,21 +1034,23 @@ async function showDoc() {
 }
 function drawSide() {
   const side = $('side'); side.replaceChildren();
-  const brand = el('div', 'brand'); const logo = el('img'); logo.src = '/favicon.svg'; logo.alt = ''; brand.append(logo, el('span', '', 'OpenVita')); side.append(brand);
-  const add = (icn, label, small, k) => { const b = el('button', 'item' + (k === target ? ' on' : '')); b.append(icon(icn), el('span', '', label));
+  const add = (icn, label, small, k, two) => { const b = el('button', 'item' + (two ? ' two' : '') + (k === target ? ' on' : ''));
+    if (!two) b.append(icon(icn)); b.append(el('span', '', label));
     if (small) b.append(el('small', '', small)); b.onclick = () => setTarget(k); side.append(b); };
-  const grp = (icn, text, onAdd) => { const g = el('div', 'grp'); g.append(icon(icn), el('span', '', text));
+  const grp = (text, onAdd) => { const g = el('div', 'grp'); g.append(el('span', '', text));
     if (onAdd) { const b = el('button', 'add'); b.append(icon('plus'), tr('newBtn')); b.title = tr('newAppTip'); b.onclick = onAdd; g.append(b); } side.append(g); };
-  grp('folder', tr('shared')); add('help', tr('howItWorks'), '', 'doc/how'); add('spark', tr('instructions'), '', 'doc/prompt');
-  if (!tree.length) side.append(el('div', 'empty', tr('empty')));
-  for (const c of tree) {
-    const who = el('div', 'who'); who.append(icon('user'), el('span', '', c.person)); side.append(who);
-    add('data', tr('profile'), c.profile ? 'OpenSelf' : tr('profileNone'), c.person + '/raw'); add('spark', tr('personal'), 'tuning', c.person + '/personal');
-    if (c.base.length) { grp('folder', tr('baseCvs'));
-      for (const v of c.base) add('file', v === 'generic' ? tr('generic') : v, '', c.person + '/base/' + v); }
-    { grp('case', tr('apps'), () => openNewCase(c.person));
-      for (const a of c.apps) add('file', a.replace(/^\d{4}-\d{2}-/, ''), a.slice(0, 7), c.person + '/applications/' + a); }
-  }
+  const c = tree.find(x => x.person === ctxC);
+  if (!c) { side.append(el('div', 'empty', tr('empty'))); return; }
+  if (c.base.length) { grp(tr('baseCvs'));
+    for (const v of c.base) add('file', v === 'generic' ? tr('generic') : v, '', c.person + '/base/' + v); }
+  grp(tr('apps'), () => openNewCase(c.person));
+  for (const a of c.apps) add('', a.replace(/^\d{4}-\d{2}-/, '').replace(/-/g, ' '), a.slice(0, 7), c.person + '/applications/' + a, true);
+  grp(tr('forAssistant')); add('spark', tr('personal'), 'tuning', c.person + '/personal');
+  const h = el('button', 'health'); h.append(el('b', '', tr('health')));
+  if (c.stats) { h.append(el('span', '', tr('healthCounts', c.stats.assignments, c.stats.employments)));
+    if (c.stats.questions) h.append(el('span', 'q', tr('healthQs', c.stats.questions))); }
+  else h.append(el('span', '', tr('healthNone')));
+  h.onclick = () => setTarget(c.person + '/raw'); side.append(h);
 }
 function drawTabs() {
   const tabs = $('tabs'); tabs.replaceChildren();
@@ -1043,13 +1136,13 @@ async function tick(force) {
   document.body.classList.remove('doc');
   try {
     const s = await (await fetch('/state?' + q({ t: target }), { cache: 'no-store' })).json();
-    if (!tree.length) { tree = s.tree; applyLang(); drawSide(); drawTitle(); }
+    if (JSON.stringify(tree) !== JSON.stringify(s.tree)) { tree = s.tree; applyLang(); drawSide(); drawNav(); drawTitle(); }
     if (!s.ok) { $('msg').textContent = tr('notFound', target); setTimeout(tick, 1500); return; }
     $('dot').className = 'dot' + (s.building ? ' busy' : s.error ? ' err' : '');
     $('msg').textContent = rev ? tr('revision') : s.building ? tr('building') : s.error ? tr('buildError') : tr('updated', s.built);
     $('dirty').hidden = !s.dirty || !!rev;
     fillTemplates(s.templates || [], s.template || '');
-    $('pdflink').href = pdfUrl(); lastState = s; drawPaths();
+    $('pdflink').href = pdfUrl(); $('pdfdl').href = pdfUrl(); $('pdfdl').download = pdfName(); lastState = s; drawPaths();
     if (JSON.stringify(files) !== JSON.stringify(s.files) || force === true) { files = s.files; drawTabs(); }
     const view = $('view');
     if (tab !== 'cv') {
@@ -1087,7 +1180,7 @@ async function fileAction(path, done) {
 const rel = t => { const d = (Date.now() / 1000 - t) / 86400; return d < 1 ? tr('today') : d < 2 ? tr('yesterday') : tr('daysAgo', Math.floor(d)); };
 async function openRevs() {
   const pop = $('pop'); if (!pop.hidden) { pop.hidden = true; return; }
-  $('cpop').hidden = true; pop.hidden = false; pop.replaceChildren(el('div', 'empty', tr('fetching')));
+  pop.hidden = false; pop.replaceChildren(el('div', 'empty', tr('fetching')));
   revs = await (await fetch('/revisions?' + q({ t: target }), { cache: 'no-store' })).json();
   pop.replaceChildren();
   const cur = el('button', 'rev' + (!rev ? ' on' : '')); const top = el('div', 'top');
@@ -1150,35 +1243,34 @@ function drawPaths() {
 }
 let tplList = [], tplCurrent = '';
 async function setTemplate(name) {
-  $('tplpop').hidden = true;
   const r = await fetch('/set-template', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' },
     body: JSON.stringify({ t: target, template: name }) });
   const j = await r.json(); toast(j.message || (j.ok ? tr('switched') : tr('notSwitched'))); version = -1; tick(true);
 }
-function openTemplates() {
-  const pop = $('tplpop'); if (!pop.hidden) { pop.hidden = true; return; }
-  $('pop').hidden = true; $('cpop').hidden = true; pop.hidden = false; pop.replaceChildren();
-  pop.append(el('h3', '', tr('templateFor')), el('div', 'lead', tr('templateLead')));
-  const grid = el('div', 'tplgrid'), stamp = Math.floor(Date.now() / 60000);
+function drawTemplates() {
+  // Redrawn only when the CV, its template or the list changes; previews are cached per minute.
+  const grid = $('tplgrid'), sig = JSON.stringify([target, tplCurrent, tplList.map(t => t.name), LANG]);
+  if (grid.dataset.sig === sig) return; grid.dataset.sig = sig; grid.replaceChildren();
+  const stamp = Math.floor(Date.now() / 60000);
   for (const t of tplList) {
     const card = el('button', 'tplcard' + (t.name === tplCurrent ? ' on' : '')), th = el('span', 'thumb'), img = el('img');
     img.loading = 'lazy'; img.alt = ''; img.src = '/tpl-preview?' + q({ t: target, n: t.name, v: stamp }); th.append(img);
-    card.append(th, el('b', '', t.label), el('span', '', t.description));
-    if (t.name === tplCurrent) card.append(el('span', 'now', tr('inUse')));
-    card.onclick = () => t.name === tplCurrent ? (pop.hidden = true) : setTemplate(t.name);
+    card.title = t.label + (t.description ? '\n' + t.description : '') + (t.name === tplCurrent ? '\n' + tr('inUse') : '');
+    card.append(th, el('b', '', t.label));
+    card.onclick = () => { if (t.name !== tplCurrent) setTemplate(t.name); };
     grid.append(card);
   }
-  pop.append(grid);
 }
 function fillTemplates(list, current) {
   tplList = list; tplCurrent = current;
-  const cur = list.find(t => t.name === current); $('tpllabel').textContent = tr('template') + ': ' + (cur ? cur.label : current || '?');
+  const cur = list.find(t => t.name === current); $('tpllabel').textContent = cur ? cur.label : current || '?';
+  drawTemplates();
   const nc = $('nctpl'), keep = nc.value, sig = list.map(t => t.name).join() + LANG;
   if (nc.dataset.sig === sig) return; nc.dataset.sig = sig;
   nc.replaceChildren(...list.map(t => { const o = el('option', '', t.label + (t.name === 'classic' ? tr('default') : '')); o.value = t.name; return o; }));
   nc.value = keep || current || 'classic';
 }
-$('tplbtn').onclick = openTemplates; $('draftbtn').onclick = redraft;
+$('draftbtn').onclick = redraft;
 $('nccreate').onclick = createCase; $('nccancel').onclick = () => $('newcase').close(); $('genbtn').onclick = generate;
 let cctx = null;
 function checkSel() {
@@ -1212,13 +1304,14 @@ async function loadComments() {
   if (!target) return;
   try { comments = await (await fetch('/comments?' + q({ c: consC() }), { cache: 'no-store' })).json(); } catch (e) { return; }
   const open = comments.filter(c => c.status === 'open').length;
-  $('cmcount').hidden = !open; $('cmcount').textContent = open;
+  for (const id of ['cmcount', 'cmcount2']) { $(id).hidden = !open; $(id).textContent = open; }
   $('genchip').hidden = !comments.some(c => c.status === 'open' && c.kind === 'generate' && c.target === target);
   $('genbtn').hidden = !target.includes('/applications/');
-  if (!$('cpop').hidden) drawComments();
+  drawComments();
 }
 function drawComments() {
-  const pop = $('cpop'); pop.replaceChildren();
+  const pop = $('cmlist'), sig = JSON.stringify([comments, LANG]);
+  if (pop.dataset.sig === sig) return; pop.dataset.sig = sig; pop.replaceChildren();
   const shown = comments.filter(c => c.status !== 'archived');
   if (!shown.length) { pop.append(el('div', 'empty', tr('noComments'))); return; }
   const act = async (id, status) => { await fetch('/comment-status', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' },
@@ -1301,23 +1394,22 @@ document.addEventListener('mousemove', e => {
   const f = caretAt(tl, e.clientX, e.clientY); if (f) getSelection().setBaseAndExtent(...gapDrag, ...f);
 });
 document.addEventListener('mouseup', () => { gapDrag = null; });
-document.addEventListener('mouseup', e => { if (!e.target.closest('#cbox') && !e.target.closest('.pop')) setTimeout(checkSel, 10); });
+document.addEventListener('mouseup', e => { if (!e.target.closest('#cbox') && !e.target.closest('.pop') && !e.target.closest('#rail')) setTimeout(checkSel, 10); });
 document.addEventListener('mousedown', e => { if (!e.target.closest('#cbox') && !$('ctext').value.trim()) closeBox(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeBox(); $('pop').hidden = true; $('cpop').hidden = true; $('tplpop').hidden = true; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeBox(); $('pop').hidden = true; $('people').hidden = true; document.body.classList.remove('rail-open'); }
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && $('cbox').classList.contains('show')) sendComment(); });
 $('csend').onclick = sendComment; $('ccancel').onclick = closeBox;
-$('cmbtn').onclick = async () => { const p = $('cpop'); if (!p.hidden) { p.hidden = true; return; } $('pop').hidden = true; p.hidden = false; await loadComments(); drawComments(); };
+$('cmbtn').onclick = () => { document.body.classList.toggle('rail-open'); loadComments(); };
+$('who').onclick = e => { e.stopPropagation(); $('people').hidden = !$('people').hidden; };
 setInterval(loadComments, 5000);
 $('q').addEventListener('input', () => highlight(true));
 $('pdfbtn').onclick = e => { e.stopPropagation(); $('pdfmenu').hidden = !$('pdfmenu').hidden; };
-document.addEventListener('click', e => { if (!e.target.closest('.menu')) $('pdfmenu').hidden = true; });
+document.addEventListener('click', e => { if (!e.target.closest('.menu')) $('pdfmenu').hidden = true; if (!e.target.closest('#people')) $('people').hidden = true; });
 $('pdfmenu').addEventListener('click', e => { if (e.target.closest('.mi')) $('pdfmenu').hidden = true; });
 $('finderbtn').onclick = () => fileAction('/reveal', tr('shownFinder'));
 $('copybtn').onclick = () => fileAction('/copy', tr('pdfCopied'));
 $('revbtn').onclick = openRevs; $('savebtn').onclick = saveRev; $('backbtn').onclick = () => { rev = null; version = -1; drawBanner(); tick(true); };
-document.addEventListener('click', e => { if (!e.target.closest('#pop') && !e.target.closest('#revbtn')) $('pop').hidden = true;
-  if (!e.target.closest('#cpop') && !e.target.closest('#cmbtn')) $('cpop').hidden = true;
-  if (!e.target.closest('#tplpop') && !e.target.closest('#tplbtn')) $('tplpop').hidden = true; });
+document.addEventListener('click', e => { if (!e.target.closest('#pop') && !e.target.closest('#revbtn')) $('pop').hidden = true; });
 window.addEventListener('hashchange', () => { const t = decodeURIComponent(location.hash.slice(1)); if (t && t !== target) setTarget(t); });
 fetch('/state', { cache: 'no-store' }).then(r => r.json()).then(s => {
   tree = s.tree;
@@ -1326,7 +1418,7 @@ fetch('/state', { cache: 'no-store' }).then(r => r.json()).then(s => {
   if (!target.startsWith('doc/')) ctxC = target.split('/')[0];
   applyLang();
   document.body.classList.toggle('doc', isDoc(target));
-  drawSide(); drawTitle(); tick(true); loadComments();
+  drawSide(); drawNav(); drawTitle(); tick(true); loadComments();
 });
 </script></body></html>"""
 
