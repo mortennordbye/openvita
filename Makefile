@@ -5,6 +5,7 @@
 #   make                                      every person's base CVs and applications
 #   make new-person C=kari [PROFILE=path]     set up local/kari/, connect or create the profile, draft the base CV
 #   make connect C=kari PROFILE=path          use an existing OpenSelf profile (or an OpenSelf home)
+#   make connect-home C=kari HOME=path [VAULT=cv]   keep kari's whole folder encrypted in an OpenSelf home
 #   make draft  C=kari [VARIANT=x | APP=x] [TEMPLATE=x] [CVLANG=en|nb] [FORCE=1]   CV straight from the profile
 #   make cv     C=kari [VARIANT=x | APP=x]    -> build/kari/base/generic/kari-generic.pdf (or the application's)
 #   make png    C=kari [VARIANT=x | APP=x]    PNG preview of each page, next to the PDF
@@ -49,9 +50,11 @@ OUTDIR := build/$(C)/$(CASE)
 OUT := $(OUTDIR)/$(NAME)
 
 PORT ?= 8000
+# HOME is the shell's home folder; connect-home takes HOME=... on the command line only.
+HOME_DIR := $(if $(filter command line,$(origin HOME)),$(HOME))
 TEMPLATE ?=
 
-.PHONY: hooks guard all cv png serve watch-feedback use-template templates new new-person connect draft save release versions form-add form \
+.PHONY: hooks guard connect-home all cv png serve watch-feedback use-template templates new new-person connect draft save release versions form-add form \
         image clean check-c test lint-profile \
         profile-path profile-init profile-index profile-new profile-commit profile-log profile-restore profile-as-of
 
@@ -106,6 +109,11 @@ connect: check-c
 	@test -n "$(PROFILE)" || { echo "usage: make connect C=<name> PROFILE=<profile folder or OpenSelf home>"; exit 1; }
 	@python3 tools/profiles.py connect $(C) "$(PROFILE)"
 	@python3 tools/guard.py --install
+
+connect-home: check-c
+	@test -n "$(HOME_DIR)" || { echo "usage: make connect-home C=<name> HOME=<OpenSelf home> [VAULT=cv]"; exit 1; }
+	@python3 tools/guard.py --install
+	@python3 tools/profiles.py home $(C) "$(HOME_DIR)" $(or $(VAULT),cv)
 
 draft: check-c
 	@python3 tools/draft.py $(C) $(if $(APP),--app $(APP),--variant $(VARIANT)) $(if $(TEMPLATE),--template $(TEMPLATE)) \

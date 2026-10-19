@@ -40,6 +40,10 @@ push for them, along with the names in your profile and your company's templates
 Application folders are named `yyyy-mm-company-role`. The workbench creates them from a pasted job
 ad ("New" under Applications), or use `make new C=kari APP=2026-11-acme-platform`.
 
+Keep it encrypted and on every machine with `make connect-home C=kari HOME=~/my-openself`: the
+folder moves into your OpenSelf home as the vault `cv/` and `local/kari` links to it (see the root
+README). Your own templates go in `local/kari/templates/`.
+
 Your folder is its own local git repository. **Save** in the workbench (or `make save C=kari`) takes
 a snapshot, and the clock button lists the snapshots of the CV you are looking at.
 `make release C=kari` saves the next numbered version (v1, v2, ...) as a PDF in `releases/` and tags

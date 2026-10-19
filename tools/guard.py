@@ -94,8 +94,9 @@ def needles():
         except ValueError:
             continue
         for t in found:
-            if os.path.commonpath([ROOT, t["dir"]]) == ROOT:
-                continue  # in the repository already: public
+            real_local = os.path.realpath(profiles.LOCAL)
+            if os.path.commonpath([ROOT, t["dir"]]) == ROOT and os.path.commonpath([real_local, t["dir"]]) != real_local:
+                continue  # a built-in or example template: public
             b = t.get("brand") or {}
             values += [(t["name"], "the name of a template outside the repository"),
                        (t["label"], "the label of a template outside the repository")]
