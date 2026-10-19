@@ -199,6 +199,34 @@ class ServeProfile(unittest.TestCase):
         log = subprocess.run(["git", "-C", os.path.join(self.tmp, "ola"), "log", "--format=%s"], capture_output=True, text=True).stdout
         self.assertIn("Before drafting base/generic from the profile", log)
 
+    def test_8_templates_with_other_markup(self):
+        fam = os.path.join(self.tmp, "ola", "templates", "fam")
+        os.makedirs(fam)
+        with open(os.path.join(fam, "template.json"), "w") as f:
+            json.dump({"label": "Fam", "markup": "hand-2025"}, f)
+        with open(os.path.join(fam, "cv.css"), "w") as f:
+            f.write("body {}")
+        cv = os.path.join(self.tmp, "ola", "base", "hand", "cv.html")
+        os.makedirs(os.path.dirname(cv))
+        with open(cv, "w", encoding="utf-8") as f:
+            f.write('<html lang="nb"><link rel="stylesheet" href="template:fam/cv.css"><p>by hand</p></html>\n')
+        # a hand-made CV keeps its own family first; the built-ins come as a fresh draft
+        s = self.get("/state?t=ola/base/hand")
+        self.assertEqual({t["name"]: t["fits"] for t in s["templates"]},
+                         {"fam": True, "classic": False, "minimal": False, "sidebar": False})
+        # a draft cannot be written in other markup, so a CV in openvita markup is not offered it
+        s = self.get("/state?t=ola/base/generic")
+        self.assertNotIn("fam", [t["name"] for t in s["templates"]])
+        self.assertEqual(self.post("/draft", {"t": "ola/base/hand", "template": "nope", "force": True})[0], 400)
+        code, j = self.post("/draft", {"t": "ola/base/hand", "template": "classic", "force": True})
+        self.assertEqual((code, j["ok"]), (200, True), j)
+        with open(cv, encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn("template:classic/cv.css", html)
+        self.assertIn('<html lang="nb">', html)
+        log = subprocess.run(["git", "-C", os.path.join(self.tmp, "ola"), "log", "--format=%s"], capture_output=True, text=True).stdout
+        self.assertIn("Before drafting base/hand from the profile in template classic", log)
+
 
 if __name__ == "__main__":
     unittest.main()

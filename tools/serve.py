@@ -481,12 +481,23 @@ def doc_view(t):
 
 
 def template_list(c, current=""):
-    """[{name, label, description, source, markup}] for the templates this person can use; with the
-    CV's current template, only those that style the same markup (the others cannot take its content)."""
+    """[{name, label, description, source, markup, fits}] for the templates this person can use. `fits`:
+    it styles the same markup as the CV's current template, so the CV keeps its text. The others in
+    openvita markup are offered too, by drafting the CV again from the profile; the rest cannot take it."""
     found = templates.discover(c)[0]
     cur = next((t for t in found if t["name"] == current), None)
-    return [{k: t[k] for k in ("name", "label", "description", "source", "markup")} for t in found
-            if not cur or t["markup"] == cur["markup"]]
+    fits = lambda t: not cur or t["markup"] == cur["markup"]
+    return [{**{k: t[k] for k in ("name", "label", "description", "source", "markup")}, "fits": fits(t)}
+            for t in found if fits(t) or t["markup"] == templates.MARKUP]
+
+
+def cv_lang(k):
+    """The language a CV is written in (<html lang>), or "" for the person's default."""
+    try:
+        with open(src(k), encoding="utf-8") as fh:
+            return (re.search(r'<html lang="(\w+)"', fh.read()) or [None, ""])[1]
+    except OSError:
+        return ""
 
 
 def tpl_preview(k, name):
@@ -500,7 +511,9 @@ def tpl_preview(k, name):
     if os.path.isfile(out) and os.stat(out).st_mtime_ns >= newest:
         return out
     with open(src(k), encoding="utf-8") as fh:
-        html = templates.switch(fh.read(), t)
+        text = fh.read()
+    # A template the CV cannot move to shows what a fresh draft in it would look like.
+    html = templates.switch(text, t) if not templates.compatible(c, text, t) else draft.build(c, t, cv_lang(k) or profiles.language(c))
     pdf = out[:-4] + ".pdf"
     with build_lock:
         ok, _ = render.pdf_text(c, html, case_dir(k), pdf, warm=True)
@@ -783,6 +796,10 @@ PAGE = r"""<!doctype html>
   .tplcard .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; background: #fff; }
   .tplcard b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tplcard.on b { color: var(--acc); font-weight: 600; }
+  .tplmore { align-self: flex-start; margin-top: 10px; background: none; border: 0; padding: 0; color: var(--mut); font: inherit; cursor: pointer; }
+  .tplmore:hover { color: var(--fg); }
+  .tplother { margin-top: 8px; } .tplother[hidden] { display: none; }
+  .tplother p { margin: 0 0 8px; color: var(--mut); font-size: 12px; }
   /* Narrow window: the rail becomes a panel the Comments button opens. */
   @media (max-width: 1180px) {
     body { grid-template-columns: 220px minmax(0, 1fr) 0; }
@@ -851,6 +868,8 @@ __ICONS__
   <div id="tplsec" class="cvonly">
     <p class="rh" data-tt="templateLead"><span data-t="template"></span><small id="tpllabel"></small></p>
     <div class="tplgrid" id="tplgrid"></div>
+    <button class="tplmore" id="tplmore" hidden></button>
+    <div class="tplother" id="tplother" hidden><p data-t="otherTemplates"></p><div class="tplgrid" id="tplgrid2"></div></div>
   </div>
   <p class="rh"><span data-t="comments"></span><span class="badge" id="cmcount" hidden></span></p>
   <div id="cmlist"></div>
@@ -899,7 +918,9 @@ const T = {
     appCreated: 'Application created. Press Tailor CV when the job ad looks right.', requested: 'Requested', notRequested: 'Could not request',
     source: 'Source', switched: 'Template switched', notSwitched: 'Could not switch template', templateFor: 'Template for this CV',
     templateLead: 'The template is the look: layout, colours and fonts. The content of the CV stays the same in every template. You can switch back and forth, the previous version is saved as a revision.',
-    inUse: 'In use', default: ' (default)', sentToAssistant: 'Sent to the assistant', notStored: 'Could not store the comment',
+    inUse: 'In use', default: ' (default)', showMore: 'Show more', showLess: 'Show fewer',
+    otherTemplates: 'These templates are built differently: the CV is drafted again from the profile.',
+    redraftIn: 'Switch to {tpl}? It is built differently, so the CV is drafted again from the profile. The text you have now is kept as a revision.', sentToAssistant: 'Sent to the assistant', notStored: 'Could not store the comment',
     noComments: 'No comments yet. Select text in the CV, the job ad or the profile and write what should change.',
     genItem: 'Tailor the CV to the job ad', interview: 'Interview about {0}', theProfile: 'the profile', page: ' p.', assistant: 'Assistant: ',
     markDone: 'Mark as done', reopen: 'Open again', archive: 'Hide from the list (kept for later tuning)', shownFinder: 'Shown in Finder',
@@ -932,7 +953,9 @@ const T = {
     appCreated: 'Søknad opprettet. Trykk Skreddersy CV når annonsen ser riktig ut.', requested: 'Bestilt', notRequested: 'Kunne ikke bestille',
     source: 'Kilde', switched: 'Mal byttet', notSwitched: 'Kunne ikke bytte mal', templateFor: 'Mal for denne CV-en',
     templateLead: 'Malen er utseendet: layout, farger og skrifter. Innholdet i CV-en er det samme, uansett mal. Du kan bytte frem og tilbake, forrige versjon lagres som en revisjon.',
-    inUse: 'Bruker nå', default: ' (standard)', sentToAssistant: 'Sendt til assistenten', notStored: 'Kunne ikke lagre kommentaren',
+    inUse: 'Bruker nå', default: ' (standard)', showMore: 'Vis flere', showLess: 'Vis færre',
+    otherTemplates: 'Disse malene er bygd opp annerledes: CV-en lages på nytt fra profilen.',
+    redraftIn: 'Bytte til {tpl}? Den er bygd opp annerledes, så CV-en lages på nytt fra profilen. Teksten du har nå lagres som en revisjon.', sentToAssistant: 'Sendt til assistenten', notStored: 'Kunne ikke lagre kommentaren',
     noComments: 'Ingen kommentarer ennå. Marker tekst i CV-en, annonsen eller profilen og skriv hva som skal endres.',
     genItem: 'Skreddersy CV-en til annonsen', interview: 'Intervju om {0}', theProfile: 'profilen', page: ' s.', assistant: 'Assistenten: ',
     markDone: 'Merk som gjort', reopen: 'Åpne igjen', archive: 'Skjul fra lista (lagres fortsatt for senere tuning)', shownFinder: 'Vist i Finder',
@@ -1252,27 +1275,40 @@ async function setTemplate(name) {
     body: JSON.stringify({ t: target, template: name }) });
   const j = await r.json(); toast(j.message || (j.ok ? tr('switched') : tr('notSwitched'))); version = -1; tick(true);
 }
+async function redraftIn(t) {
+  if (!confirm(tr('redraftIn').replace('{tpl}', t.label))) return;
+  const r = await fetch('/draft', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ t: target, template: t.name, force: true }) });
+  const j = await r.json(); toast(j.message || (j.ok ? tr('switched') : tr('notSwitched'))); revs = null; version = -1; tick(true);
+}
+let tplOpen = false;
 function drawTemplates() {
   // Redrawn only when the CV, its template or the list changes; previews are cached per minute.
-  const grid = $('tplgrid'), sig = JSON.stringify([target, tplCurrent, tplList.map(t => t.name), LANG]);
-  if (grid.dataset.sig === sig) return; grid.dataset.sig = sig; grid.replaceChildren();
+  const grid = $('tplgrid'), sig = JSON.stringify([target, tplCurrent, tplList.map(t => t.name + t.fits), LANG]);
+  const others = tplList.filter(t => !t.fits), more = $('tplmore');
+  more.hidden = !others.length; $('tplother').hidden = !others.length || !tplOpen;
+  more.textContent = (tplOpen ? tr('showLess') : tr('showMore') + ' (' + others.length + ')');
+  if (grid.dataset.sig === sig) return; grid.dataset.sig = sig;
   const stamp = Math.floor(Date.now() / 60000);
-  for (const t of tplList) {
-    const card = el('button', 'tplcard' + (t.name === tplCurrent ? ' on' : '')), th = el('span', 'thumb'), img = el('img');
+  const card = t => {
+    const b = el('button', 'tplcard' + (t.name === tplCurrent ? ' on' : '')), th = el('span', 'thumb'), img = el('img');
     img.loading = 'lazy'; img.alt = ''; img.src = '/tpl-preview?' + q({ t: target, n: t.name, v: stamp }); th.append(img);
-    card.title = t.label + (t.description ? '\n' + t.description : '') + (t.name === tplCurrent ? '\n' + tr('inUse') : '');
-    card.append(th, el('b', '', t.label));
-    card.onclick = () => { if (t.name !== tplCurrent) setTemplate(t.name); };
-    grid.append(card);
-  }
+    b.title = t.label + (t.description ? '\n' + t.description : '') + (t.name === tplCurrent ? '\n' + tr('inUse') : '');
+    b.append(th, el('b', '', t.label));
+    b.onclick = () => { if (t.name !== tplCurrent) (t.fits ? setTemplate(t.name) : redraftIn(t)); };
+    return b;
+  };
+  grid.replaceChildren(...tplList.filter(t => t.fits).map(card));
+  $('tplgrid2').replaceChildren(...others.map(card));
 }
+$('tplmore').onclick = () => { tplOpen = !tplOpen; drawTemplates(); };
 function fillTemplates(list, current) {
   tplList = list; tplCurrent = current;
   const cur = list.find(t => t.name === current); $('tpllabel').textContent = cur ? cur.label : current || '?';
   drawTemplates();
-  const nc = $('nctpl'), keep = nc.value, sig = list.map(t => t.name).join() + LANG;
+  const fit = list.filter(t => t.fits), nc = $('nctpl'), keep = nc.value, sig = fit.map(t => t.name).join() + LANG;
   if (nc.dataset.sig === sig) return; nc.dataset.sig = sig;
-  nc.replaceChildren(...list.map(t => { const o = el('option', '', t.label + (t.name === 'classic' ? tr('default') : '')); o.value = t.name; return o; }));
+  nc.replaceChildren(...fit.map(t => { const o = el('option', '', t.label + (t.name === 'classic' ? tr('default') : '')); o.value = t.name; return o; }));
   nc.value = keep || current || 'classic';
 }
 $('draftbtn').onclick = redraft;
@@ -1455,16 +1491,17 @@ def profile_request(c, d):
     return 200, {"ok": True, "message": say(c, "interview")}
 
 
-def draft_cv(k, force):
-    """Rebuild k from the profile (tools/draft.py). (ok, message, needs_force)."""
+def draft_cv(k, force, template=""):
+    """Rebuild k from the profile (tools/draft.py), in `template` if given. (ok, message, needs_force)."""
     c, path = parse(k)
     kind, name = path.split("/", 1)
     target = draft.target(c, *(("generic", name) if kind == "applications" else (name, "")))
     if os.path.exists(target) and draft.edited(target) and not force:
         return False, "", True
-    save_revision(c, f"Before drafting {path} from the profile")
+    save_revision(c, f"Before drafting {path} from the profile" + (f" in template {template}" if template else ""))
+    kw = {"template": template, "lang": cv_lang(k)} if template else {}
     try:
-        draft.write(c, **({"app": name} if kind == "applications" else {"variant": name}), force=True)
+        draft.write(c, **({"app": name} if kind == "applications" else {"variant": name}), force=True, **kw)
     except SystemExit as e:
         return False, str(e), False
     return True, say(c, "drafted"), False
@@ -1664,10 +1701,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({"ok": False, "message": str(e) or say(c, "not-switched")})
             return self.json({"ok": True, "message": say(c, "switched", tpl=templates.find(tpl, c)["label"])})
         if path == "/draft":
-            t = str(data.get("t", ""))
-            if not valid(t):
+            t, tpl = str(data.get("t", "")), str(data.get("template", ""))
+            if not valid(t) or (tpl and tpl not in templates.names(parse(t)[0])):
                 return self.json({"ok": False, "message": "bad request"}, 400)
-            ok, message, needs_force = draft_cv(t, bool(data.get("force")))
+            ok, message, needs_force = draft_cv(t, bool(data.get("force")), tpl)
             return self.json({"ok": ok, "message": message, "edited": needs_force})
         if path == "/generate":
             t = str(data.get("t", ""))
