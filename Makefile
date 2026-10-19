@@ -30,6 +30,8 @@
 #   make profile-restore C=kari ID=<id> REV=<hash>   bring an old version back, as a new commit
 #   make profile-as-of C=kari DATE=2026-01-31 the index as the profile was on that date
 #   make test                                 run the tests (host Python, no Docker)
+#   make hooks                                install the guard (pre-commit, pre-push): local work is never committed
+#   make guard                                run the guard by hand
 
 IMAGE := openvita
 STAMP := $(if $(filter local,$(OPENVITA_RENDER)),,build/.image)
@@ -49,7 +51,7 @@ OUT := $(OUTDIR)/$(NAME)
 PORT ?= 8000
 TEMPLATE ?=
 
-.PHONY: all cv png serve watch-feedback use-template templates new new-person connect draft save release versions form-add form \
+.PHONY: hooks guard all cv png serve watch-feedback use-template templates new new-person connect draft save release versions form-add form \
         image clean check-c test lint-profile \
         profile-path profile-init profile-index profile-new profile-commit profile-log profile-restore profile-as-of
 
@@ -85,7 +87,14 @@ templates:
 watch-feedback: check-c
 	@python3 tools/watch-feedback.py $(C)
 
+hooks:
+	@python3 tools/guard.py --install && echo "guard installed: pre-commit and pre-push"
+
+guard:
+	@python3 tools/guard.py
+
 serve: $(STAMP)
+	@python3 tools/guard.py --install
 	@python3 tools/serve.py "$(C)" "$(VARIANT)" "$(APP)" $(PORT)
 
 image build/.image: Dockerfile
@@ -96,6 +105,7 @@ image build/.image: Dockerfile
 connect: check-c
 	@test -n "$(PROFILE)" || { echo "usage: make connect C=<name> PROFILE=<profile folder or OpenSelf home>"; exit 1; }
 	@python3 tools/profiles.py connect $(C) "$(PROFILE)"
+	@python3 tools/guard.py --install
 
 draft: check-c
 	@python3 tools/draft.py $(C) $(if $(APP),--app $(APP),--variant $(VARIANT)) $(if $(TEMPLATE),--template $(TEMPLATE)) \
@@ -103,6 +113,7 @@ draft: check-c
 
 new-person: check-c
 	@test ! -e $(DIR) || { echo "$(DIR) already exists"; exit 1; }
+	@python3 tools/guard.py --install
 	mkdir -p $(DIR)/base/generic $(DIR)/applications $(DIR)/private/intake
 	git -C $(DIR) init -q -b main
 	@if [ -n "$(PROFILE)" ]; then python3 tools/profiles.py connect $(C) "$(PROFILE)"; else python3 tools/profiles.py init $(C); fi

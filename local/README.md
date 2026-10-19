@@ -22,6 +22,10 @@ local/kari/
   private/intake/       old CVs, LinkedIn PDF and other source material, never copied into a CV as is
 ```
 
+`local/forbidden.txt` (optional): words that must never appear in the openvita repository, one per
+line, such as your employer's or customers' names. The guard (`make hooks`) checks every commit and
+push for them, along with the names in your profile and your company's templates.
+
 `openvita.json`, all keys optional:
 
 ```json
