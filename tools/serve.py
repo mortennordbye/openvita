@@ -649,6 +649,7 @@ PAGE = r"""<!doctype html>
   .nv { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; color: var(--mut); padding: 7px 12px;
         border-radius: 6px; font: inherit; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
   .nv:hover { color: var(--fg); background: var(--hover); } .nv.on { color: #fff; background: var(--hover); font-weight: 600; }
+  .nv .i { width: 15px; height: 15px; flex: none; opacity: .75; } .nv.on .i { opacity: 1; color: var(--acc); }
   .nv .badge { background: color-mix(in srgb, var(--warn) 18%, var(--panel)); color: color-mix(in srgb, var(--warn) 75%, var(--fg)); }
   #who { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); color: var(--fg);
          border-radius: 99px; padding: 3px 10px 3px 3px; font: inherit; cursor: pointer; white-space: nowrap; text-transform: capitalize; }
@@ -1085,7 +1086,8 @@ function drawNav() {
   const nav = $('nav'), c = ctxC, p = tree.find(x => x.person === c); nav.replaceChildren();
   const kind = target.startsWith('doc/how') ? 'how' : target.startsWith('doc/prompt') ? 'prompt' : target.endsWith('/raw') ? 'raw'
     : target.endsWith('/personal') ? 'personal' : 'cv';
-  const mk = (k, label, to, badge) => { const b = el('button', 'nv' + (k === kind ? ' on' : '')); b.append(el('span', '', label));
+  const mk = (k, label, to, badge) => { const b = el('button', 'nv' + (k === kind ? ' on' : ''));
+    b.append(icon({ cv: 'file', raw: 'user', prompt: 'spark', how: 'help' }[k]), el('span', '', label));
     if (badge) b.append(el('span', 'badge', badge)); b.onclick = () => setTarget(to); nav.append(b); };
   if (p) { mk('cv', tr('cvs'), cvOf(c)); mk('raw', tr('profile'), c + '/raw', p.stats && p.stats.questions ? String(p.stats.questions) : ''); }
   mk('prompt', tr('instructions'), 'doc/prompt'); mk('how', tr('howItWorks'), 'doc/how');
