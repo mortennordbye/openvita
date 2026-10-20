@@ -17,6 +17,22 @@ class Draft(LocalDir, unittest.TestCase):
         with open(self.draft.write("ola", **kw), encoding="utf-8") as f:
             return f.read()
 
+    def test_customers_hidden(self):
+        self.profiles.set_config("ola", customers="hidden")
+        html = self.cv()
+        self.assertNotIn("Statens testverk", html)  # public in the profile, hidden by choice
+        self.assertIn("en statlig etat", html)  # its alias
+        self.assertIn("Statens testverk", self.cv(customers="named", force=True))  # the flag wins over the config
+
+    def test_customers_hidden_warns_about_names_in_text(self):
+        path = os.path.join(self.prof, "assignments", "2023-09-statens-testverk-plattformingenior.md")
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text.replace("Ny intern utviklerplattform", "Ny intern utviklerplattform for Statens testverk"))
+        self.assertEqual(self.draft.warn_names("ola", "<p>for Statens testverk</p>", "hidden"), ["Statens testverk"])
+        self.assertEqual(self.draft.warn_names("ola", "<p>for Statens testverk</p>", "named"), [])
+
     def test_respects_the_profile_rules(self):
         html = self.cv()
         self.assertIn('href="template:classic/cv.css"', html)

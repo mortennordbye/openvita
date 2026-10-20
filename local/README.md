@@ -33,9 +33,14 @@ push for them, along with the names in your profile and your company's templates
   "profile": "~/my-openself",
   "templates": ["~/work/cv-templates"],
   "language": "en",
-  "template": "classic"
+  "template": "classic",
+  "customers": "named"
 }
 ```
+
+`customers`: `named` (the default) names customers where the profile allows it (`customer_public:
+public`); `hidden` names none, only each customer's alias or sector, for a CV that may travel
+further. `make draft CUSTOMERS=hidden` does the same for one draft.
 
 Application folders are named `yyyy-mm-company-role`. The workbench creates them from a pasted job
 ad ("New" under Applications), or use `make new C=kari APP=2026-11-acme-platform`.
