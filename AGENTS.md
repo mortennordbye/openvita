@@ -62,6 +62,12 @@ When the person is in the workbench (or says so), run `make watch-feedback C=<na
 background monitor so each new comment and request reaches you as it is made. Items already open
 are printed first. Otherwise handle open items when asked, or when you start work on a CV.
 
+While it runs, the watcher writes a heartbeat (`local/.assistant/<name>.json`), and the workbench
+shows "AI connected" and marks each open item it has printed as seen by you. Without it the person
+sees "No AI connected" and their requests wait. So start it at the beginning of any session where
+the person uses the workbench, keep it running for the whole session, and stop it (do not leave it
+orphaned) when the session ends. A stopped or killed watcher goes grey within a few seconds.
+
 ## First time: onboarding
 
 New people run `/onboard` (`.claude/skills/onboard/SKILL.md`). It sets up their folder, reads

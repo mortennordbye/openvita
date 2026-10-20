@@ -7,8 +7,10 @@ Meant for an assistant such as Claude Code: run it as a background monitor while
 (make serve) is open, and every line becomes a notification. Items that were already open when it
 started are printed once first, then only new ones. AGENTS.md describes what to do with each line.
 """
+import atexit
 import json
 import os
+import signal
 import sys
 import time
 
@@ -50,6 +52,31 @@ def line(i, prefix):
             f"rev={i.get('revision') or '-'} | selection: {i['quote'][:200]} | wish: {i['comment']}")
 
 
+beat = profiles.assistant_file(c)
+started = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def heartbeat(seen):
+    """Tell the workbench an assistant is listening, and which requests it has been shown."""
+    os.makedirs(os.path.dirname(beat), exist_ok=True)
+    with open(beat + ".tmp", "w") as fh:
+        json.dump({"pid": os.getpid(), "since": started, "beat": time.time(), "seen": sorted(seen)}, fh)
+    os.replace(beat + ".tmp", beat)
+
+
+def cleanup():
+    try:
+        with open(beat) as fh:
+            mine = json.load(fh).get("pid") == os.getpid()
+        if mine:
+            os.remove(beat)
+    except (OSError, ValueError):
+        pass
+
+
+atexit.register(cleanup)
+signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
 seen = set()
 first = True
 while True:
@@ -60,4 +87,5 @@ while True:
                 seen.add(id_)
                 print(line(i, "ALREADY OPEN: " if first else ""), flush=True)
         first = False
+    heartbeat(seen)
     time.sleep(1)

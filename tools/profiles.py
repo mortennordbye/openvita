@@ -29,7 +29,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL = os.environ.get("OPENVITA_LOCAL") or os.path.join(ROOT, "local")
 CONFIG = "openvita.json"
-RESERVED = ("customers",)  # folders in local/ that are not a person
+RESERVED = ("customers", ".assistant")  # folders in local/ that are not a person
+ASSISTANT_STALE = 5  # seconds without a heartbeat before the workbench says no assistant is connected
 sys.path.insert(0, os.path.join(ROOT, "openself"))
 
 try:
@@ -44,6 +45,12 @@ def person_dir(c):
     if not re.fullmatch(r"[\w.-]+", c) or c in RESERVED:
         raise ValueError(f"bad name {c!r}")
     return os.path.join(LOCAL, c)
+
+
+def assistant_file(c):
+    """Heartbeat of `make watch-feedback C=<c>`: proof an assistant session is listening."""
+    person_dir(c)  # checks the name
+    return os.path.join(LOCAL, ".assistant", f"{c}.json")
 
 
 def config(c):

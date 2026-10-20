@@ -551,6 +551,18 @@ def load_feedback(c):
         return []
 
 
+def assistant_state(c):
+    """Whether `make watch-feedback C=<c>` is running (fresh heartbeat), and the requests it has shown."""
+    try:
+        with open(profiles.assistant_file(c)) as fh:
+            beat = json.load(fh)
+        if time.time() - float(beat.get("beat", 0)) <= profiles.ASSISTANT_STALE:
+            return {"connected": True, "since": beat.get("since", ""), "seen": [int(i) for i in beat.get("seen", [])]}
+    except (OSError, ValueError, TypeError):
+        pass
+    return {"connected": False, "since": "", "seen": []}
+
+
 def store_feedback(c, items):
     tmp = feedback_path(c) + ".tmp"
     with open(tmp, "w") as fh:
@@ -798,6 +810,11 @@ PAGE = r"""<!doctype html>
   dialog .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: var(--fg); font-size: 13px; }
   dialog .checks input { width: auto; }
   .chip.gen { border-color: var(--acc); color: var(--acc); }
+  .ai { display: flex; align-items: center; gap: 7px; background: none; border: 1px solid var(--line); color: var(--mut);
+    border-radius: 99px; padding: 4px 11px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .ai .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mut); }
+  .ai.on { color: var(--fg); } .ai.on .dot { background: #3fb950; box-shadow: 0 0 0 3px rgba(63,185,80,.18); }
+  .cm .seen { font-size: 11px; color: var(--mut); margin-top: 4px; } .cm .seen.wait { color: var(--warn); }
   .tpl { background: #101012; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
   .tplgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .tplcard { display: flex; flex-direction: column; gap: 5px; text-align: left; background: none; border: 0; padding: 0;
@@ -846,6 +863,7 @@ __ICONS__
   <div class="brand"><span class="logo">OV</span>OpenVita</div>
   <nav id="nav" aria-label="Views"></nav>
   <span class="sp"></span>
+  <button id="ai" class="ai" hidden><span class="dot"></span><span id="ailbl"></span></button>
   <label class="find"><svg class="i"><use href="#i-search"/></svg><input id="q" type="search" data-tp="search"><span id="hits"></span></label>
   <button id="who" aria-haspopup="true"><span class="av" id="whoav"></span><span id="whoname"></span><span class="caret">▾</span></button>
   <div class="menupop" id="people" hidden></div>
@@ -950,6 +968,9 @@ const T = {
     otherTemplates: 'These templates are built differently: the CV is drafted again from the profile.',
     redraftIn: 'Switch to {tpl}? It is built differently, so the CV is drafted again from the profile. The text you have now is kept as a revision.', sentToAssistant: 'Sent to the assistant', notStored: 'Could not store the comment',
     noComments: 'No comments yet. Select text in the CV, the job ad or the profile and write what should change.',
+    aiOn: 'AI connected', aiOff: 'No AI connected', aiOnTip: 'An assistant has been listening since {0}. New comments and requests reach it within a second.',
+    aiOffTip: 'Comments and requests wait until an assistant listens. Click to copy what to run in its session: {0}', aiCopied: 'Copied: {0}',
+    seenByAi: 'Seen by the assistant', waitingAi: 'Waiting for an assistant', noAiYet: 'No assistant is connected yet, it picks this up when one is.',
     genItem: 'Tailor the CV to the job ad', interview: 'Interview about {0}', theProfile: 'the profile', page: ' p.', assistant: 'Assistant: ',
     markDone: 'Mark as done', reopen: 'Open again', archive: 'Hide from the list (kept for later tuning)', shownFinder: 'Shown in Finder',
     pdfCopied: 'PDF copied, paste with Cmd+V', noProfileYet: 'No profile connected yet. Run `make connect C={0} PROFILE=<path>` to use an existing OpenSelf profile, or `make profile-init C={0}` to start one.',
@@ -990,6 +1011,9 @@ const T = {
     otherTemplates: 'Disse malene er bygd opp annerledes: CV-en lages på nytt fra profilen.',
     redraftIn: 'Bytte til {tpl}? Den er bygd opp annerledes, så CV-en lages på nytt fra profilen. Teksten du har nå lagres som en revisjon.', sentToAssistant: 'Sendt til assistenten', notStored: 'Kunne ikke lagre kommentaren',
     noComments: 'Ingen kommentarer ennå. Marker tekst i CV-en, annonsen eller profilen og skriv hva som skal endres.',
+    aiOn: 'AI tilkoblet', aiOff: 'Ingen AI tilkoblet', aiOnTip: 'En assistent har lyttet siden {0}. Nye kommentarer og bestillinger når den innen et sekund.',
+    aiOffTip: 'Kommentarer og bestillinger venter til en assistent lytter. Klikk for å kopiere det den skal kjøre i økten sin: {0}', aiCopied: 'Kopiert: {0}',
+    seenByAi: 'Sett av assistenten', waitingAi: 'Venter på en assistent', noAiYet: 'Ingen assistent er tilkoblet ennå, den tar det når den kobler til.',
     genItem: 'Skreddersy CV-en til annonsen', interview: 'Intervju om {0}', theProfile: 'profilen', page: ' s.', assistant: 'Assistenten: ',
     markDone: 'Merk som gjort', reopen: 'Åpne igjen', archive: 'Skjul fra lista (lagres fortsatt for senere tuning)', shownFinder: 'Vist i Finder',
     pdfCopied: 'PDF kopiert, lim inn med Cmd+V', noProfileYet: 'Ingen profil koblet til ennå. Kjør `make connect C={0} PROFILE=<sti>` for å bruke en OpenSelf-profil du har, eller `make profile-init C={0}` for å starte en.',
@@ -1288,7 +1312,7 @@ async function createCase() {
 }
 async function generate() {
   const r = await fetch('/generate', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ t: target }) });
-  const j = await r.json(); toast(j.message || (j.ok ? tr('requested') : tr('notRequested'))); loadComments();
+  const j = await r.json(); toast((j.message || (j.ok ? tr('requested') : tr('notRequested'))) + (j.ok ? aiNote() : '')); loadComments();
 }
 function openPrep() { $('prepmsg').textContent = ''; $('prepdlg').showModal(); $('prepmeet').focus(); }
 async function requestPrep() {
@@ -1299,7 +1323,7 @@ async function requestPrep() {
     body: JSON.stringify({ t: target, meeting: $('prepmeet').value.trim(), include }) });
   const j = await r.json(); $('prepsend').disabled = false;
   if (!j.ok) { $('prepmsg').textContent = j.message || tr('notRequested'); return; }
-  $('prepdlg').close(); $('prepmeet').value = ''; toast(j.message || tr('requested')); loadComments();
+  $('prepdlg').close(); $('prepmeet').value = ''; toast((j.message || tr('requested')) + aiNote()); loadComments();
 }
 async function redraft() {
   const post = force => fetch('/draft', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' },
@@ -1385,13 +1409,25 @@ async function sendComment() {
   const text = $('ctext').value.trim(); if (!text || !cctx) return;
   const body = { t: target, source: cctx.source, page: cctx.page, quote: cctx.quote, comment: text, revision: rev ? rev.hash : '', c: consC(), file: cctx.file || '', section: cctx.section || '' };
   const r = await fetch('/comment', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const j = await r.json(); toast(j.ok ? tr('sentToAssistant') : (j.message || tr('notStored')));
+  const j = await r.json(); toast(j.ok ? tr('sentToAssistant') + aiNote() : (j.message || tr('notStored')));
   if (j.ok) { closeBox(); getSelection().removeAllRanges(); loadComments(); }
 }
-let comments = [];
+let comments = [], ai = { connected: false, seen: [] };
+// The AI chip: green while `make watch-feedback` runs for this person (its heartbeat is fresh).
+function drawAi() {
+  const b = $('ai'), cmd = 'make watch-feedback C=' + consC();
+  b.hidden = !consC(); b.classList.toggle('on', ai.connected);
+  $('ailbl').textContent = tr(ai.connected ? 'aiOn' : 'aiOff');
+  b.title = ai.connected ? tr('aiOnTip', new Date(ai.since).toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' })) : tr('aiOffTip', cmd);
+  b.onclick = async () => { if (ai.connected) { toast(b.title); return; }
+    try { await navigator.clipboard.writeText(cmd); toast(tr('aiCopied', cmd)); } catch (e) { toast(cmd); } };
+}
+const aiNote = () => ai.connected ? '' : ' ' + tr('noAiYet');
 async function loadComments() {
   if (!target) return;
   try { comments = await (await fetch('/comments?' + q({ c: consC() }), { cache: 'no-store' })).json(); } catch (e) { return; }
+  try { ai = await (await fetch('/assistant?' + q({ c: consC() }), { cache: 'no-store' })).json(); } catch (e) { ai = { connected: false, seen: [] }; }
+  drawAi();
   const open = comments.filter(c => c.status === 'open').length;
   for (const id of ['cmcount', 'cmcount2']) { $(id).hidden = !open; $(id).textContent = open; }
   $('genchip').hidden = !comments.some(c => c.status === 'open' && c.kind === 'generate' && c.target === target);
@@ -1400,7 +1436,7 @@ async function loadComments() {
   drawComments();
 }
 function drawComments() {
-  const pop = $('cmlist'), sig = JSON.stringify([comments, LANG]);
+  const pop = $('cmlist'), sig = JSON.stringify([comments, LANG, ai]);
   if (pop.dataset.sig === sig) return; pop.dataset.sig = sig; pop.replaceChildren();
   const shown = comments.filter(c => c.status !== 'archived');
   if (!shown.length) { pop.append(el('div', 'empty', tr('noComments'))); return; }
@@ -1413,6 +1449,7 @@ function drawComments() {
     else if (c.kind === 'profile-interview') d.append(el('div', '', tr('interview', c.entry || tr('theProfile')) + (c.comment ? ': ' + c.comment : '')));
     else d.append(el('div', 'q', '«' + c.quote + '»'), el('div', '', c.comment));
     if (c.note) d.append(el('div', 'note', tr('assistant') + c.note));
+    if (c.status === 'open') { const seen = ai.connected && ai.seen.includes(c.id); d.append(el('div', 'seen' + (seen ? '' : ' wait'), tr(seen ? 'seenByAi' : 'waitingAi'))); }
     const meta = el('div', 'meta'); meta.append(el('span', '', (c.file || c.target).split('/').pop() + (c.section ? ' #' + c.section : '') + (c.page ? tr('page') + c.page : '')),
       el('span', '', new Date(c.time).toLocaleDateString(LOCALE())));
     const a = el('div', 'act'); const mk = (icn, title, fn) => { const b = el('button'); b.title = title; b.append(icon(icn)); b.onclick = fn; a.append(b); };
@@ -1637,6 +1674,8 @@ class Handler(BaseHTTPRequestHandler):
                       "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
         elif u.path == "/comments" and re.fullmatch(r"[\w.-]+", q.get("c", "")):
             self.json(load_feedback(q["c"]))
+        elif u.path == "/assistant" and re.fullmatch(r"[\w.-]+", q.get("c", "")) and q["c"] not in profiles.RESERVED:
+            self.json(assistant_state(q["c"]))
         elif u.path == "/favicon.svg":
             self.send(200, FAVICON.encode(), "image/svg+xml")
         elif u.path.startswith("/profile") and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):

@@ -86,7 +86,8 @@ of the [Makefile](Makefile) lists every command.
 
 The workbench never calls an AI itself. It writes requests and comments to
 `local/<name>/feedback.json`, and an assistant session reads them (`make watch-feedback C=<name>`
-prints each one as it arrives). [AGENTS.md](AGENTS.md) is the assistant's rule book, and the
+prints each one as it arrives). While it runs, the workbench shows "AI connected" and marks each
+request the assistant has seen; otherwise it says "No AI connected" and requests wait. [AGENTS.md](AGENTS.md) is the assistant's rule book, and the
 guides in [guide/](guide/) say how CVs are written and how the profile is read. The rule that
 matters most: the profile is the only source of facts. A claim it does not support is weakened or
 removed, never added to the profile to make it fit.
