@@ -299,6 +299,7 @@ class ServeProfile(unittest.TestCase):
                         break
                     time.sleep(0.1)
                 self.assertEqual((a["connected"], a["seen"]), (True, [4]))
+                self.assertTrue(a["root"])  # the connect dialog's "cd" line
                 self.assertNotIn(".assistant", [p["person"] for p in self.get("/state")["tree"]])
             finally:
                 watch.terminate()
