@@ -232,6 +232,10 @@ class ServeProfile(unittest.TestCase):
         code, j = self.post("/new-case", {"name": "2026-11-acme-platform", "jobad": "Acme looks for a platform engineer with Kubernetes."})
         self.assertEqual((code, j["ok"]), (200, True), j)
         t = j["target"]
+        code, j = self.post("/generate", {"t": t})
+        self.assertEqual((code, j["ok"]), (200, True), j)
+        log = subprocess.run(["git", "-C", os.path.join(self.tmp, "ola"), "log", "--format=%s"], capture_output=True, text=True).stdout
+        self.assertIn("Before tailoring applications/2026-11-acme-platform", log)
         self.assertEqual(self.post("/prep", {"t": t, "include": []})[0], 400)
         self.assertEqual(self.post("/prep", {"t": t, "include": "points"})[0], 400)
         self.assertEqual(self.post("/prep", {"t": "ola/base/generic", "include": ["points"]})[0], 400)
