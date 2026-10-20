@@ -1,3 +1,3 @@
 /* Profile: OpenSelf UI mounted in #view (styles in /openself/app.css). */
 #view.pfmode { padding: 0; overflow: hidden; }
-#view.pfmode > .os { height: 100%; }
+#view.pfmode > .pfbox, #view.pfmode > .pfbox > .os { height: 100%; }

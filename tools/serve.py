@@ -1096,6 +1096,7 @@ function drawNav() {
 }
 function setTarget(t) {
   target = t; tab = 'cv'; version = -1; rev = null; revs = null; $('pop').hidden = true; $('view').classList.remove('pfmode');
+  if (pfUI && !t.endsWith('/raw')) { pfUI.destroy(); pfUI = null; pfC = ''; }  // leaving the profile: stop its UI
   $('pathbar').replaceChildren(); $('pathbar').dataset.sig = '';
   if (!t.startsWith('doc/')) ctxC = t.split('/')[0];
   applyLang();
@@ -1131,8 +1132,9 @@ function drawPath(paths, root) {
     bar.append(b);
   }
 }
-async function showDoc() {
+async function showDoc(g) {
   const d = await (await fetch('/doc?' + q({ t: target }), { cache: 'no-store' })).json(), view = $('view');
+  if (!live(g)) return;
   $('dot').className = 'dot'; $('msg').textContent = tr('readOnly');
   drawPath((d.files || []).map(f => ['', f]), d.root);
   if (target.endsWith('/raw')) { view.replaceChildren(renderMd(tr('noProfileYet', target.split('/')[0]), false)); return; }
@@ -1233,19 +1235,27 @@ async function show(url, err) {
     view.scrollTop = y; highlight();
   } finally { rendering = false; }
 }
-async function tick(force) {
-  if (!target) { setTimeout(tick, 800); return; }
+// One refresh loop. Every tick() (navigation, save, template switch ...) starts a new generation and
+// ends the old one, so a refresh still in flight for the previous view cannot draw over the new one,
+// and loops do not pile up.
+let tickGen = 0, tickTimer = 0;
+const live = g => g === tickGen;
+function again(g, ms) { if (live(g)) tickTimer = setTimeout(() => step(false, g), ms); }
+function tick(force) { tickGen++; clearTimeout(tickTimer); return step(force, tickGen); }
+async function step(force, g) {
+  if (!target) { again(g, 800); return; }
   if (isDoc(target)) {
     document.body.classList.add('doc');
-    if (pfActive()) { await profileTick(); setTimeout(tick, 1500); return; }
-    if (version !== -4) { version = -4; try { await showDoc(); } catch (e) { $('msg').textContent = tr('couldNotFetch'); } }
-    setTimeout(tick, 1500); return;
+    if (pfActive()) { await profileTick(); again(g, 1500); return; }
+    if (version !== -4) { version = -4; try { await showDoc(g); } catch (e) { $('msg').textContent = tr('couldNotFetch'); } }
+    again(g, 1500); return;
   }
   document.body.classList.remove('doc');
   try {
     const s = await (await fetch('/state?' + q({ t: target }), { cache: 'no-store' })).json();
+    if (!live(g)) return;
     if (JSON.stringify(tree) !== JSON.stringify(s.tree)) { tree = s.tree; applyLang(); drawSide(); drawNav(); drawTitle(); }
-    if (!s.ok) { $('msg').textContent = tr('notFound', target); setTimeout(tick, 1500); return; }
+    if (!s.ok) { $('msg').textContent = tr('notFound', target); again(g, 1500); return; }
     $('dot').className = 'dot' + (s.building ? ' busy' : s.error ? ' err' : '');
     $('msg').textContent = rev ? tr('revision') : s.building ? tr('building') : s.error ? tr('buildError') : tr('updated', s.built);
     $('dirty').hidden = !s.dirty || !!rev;
@@ -1268,6 +1278,7 @@ async function tick(force) {
         // Rendered again when the file changes, so the assistant's prep.md or notes show up while the tab is open.
         version = -2; formShown = (s.mdver || {})[tab] + ':' + tab;
         const txt = await (await fetch('/file?' + q({ t: target, name: tab }), { cache: 'no-store' })).text();
+        if (!live(g)) return;
         view.replaceChildren(renderMd(txt, tab === 'job-ad.md')); highlight(); }
     } else if (rev) {
       if (version !== -3 && !rendering) { version = -3; await show('/rev-pdf?' + q({ t: target, r: rev.hash }), ''); }
@@ -1276,7 +1287,7 @@ async function tick(force) {
       const seen = s.version; await show('/pdf?' + q({ t: target, v: s.version }), s.error); version = seen;
     }
   } catch (e) { $('dot').className = 'dot err'; $('msg').textContent = tr('lostServer'); }
-  setTimeout(tick, 300);
+  again(g, 300);
 }
 const pdfUrl = () => rev ? '/rev-pdf?' + q({ t: target, r: rev.hash }) : '/pdf?' + q({ t: target });
 const pdfName = () => target.split('/').pop() + (rev ? '-' + rev.hash : '') + '.pdf';

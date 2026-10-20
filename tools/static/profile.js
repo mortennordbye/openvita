@@ -32,8 +32,11 @@ async function profileTick() {
   const c = target.split('/')[0];
   if (!pfUI || pfC !== c || !$('view').querySelector('.os')) {
     if (pfUI) pfUI.destroy();
-    pfC = c; $('view').classList.add('pfmode'); $('view').replaceChildren();
-    pfUI = OpenSelfUI($('view'), pfHost(c));
+    // Its own box: a render still in flight after the person moved on lands in a detached box,
+    // not over the next view.
+    const box = document.createElement('div'); box.className = 'pfbox';
+    pfC = c; $('view').classList.add('pfmode'); $('view').replaceChildren(box);
+    pfUI = OpenSelfUI(box, pfHost(c));
   }
   await pfUI.tick();
 }
