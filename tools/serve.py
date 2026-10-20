@@ -1584,7 +1584,8 @@ fetch('/state', { cache: 'no-store' }).then(r => r.json()).then(s => {
 </script></body></html>"""
 
 
-PROFILE_POSTS = ("/profile-save", "/profile-new", "/profile-remove", "/profile-flag", "/profile-restore", "/profile-request")
+PROFILE_POSTS = ("/profile-save", "/profile-new", "/profile-remove", "/profile-flag", "/profile-restore", "/profile-request",
+                 "/profile-import")
 
 
 def profile_request(c, d):
@@ -1745,7 +1746,8 @@ class Handler(BaseHTTPRequestHandler):
         if not re.fullmatch(r"[\w.-]+", c) or not os.path.isdir(os.path.join(LOCAL, c)):
             return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
         fn = {"/profile-save": profile_api.save, "/profile-new": profile_api.new, "/profile-remove": profile_api.remove,
-              "/profile-flag": profile_api.flag, "/profile-restore": profile_api.restore, "/profile-request": profile_request}[path]
+              "/profile-flag": profile_api.flag, "/profile-restore": profile_api.restore, "/profile-request": profile_request,
+              "/profile-import": profile_api.import_}[path]
         code, body = fn(c, data)
         self.json(body, code)
 

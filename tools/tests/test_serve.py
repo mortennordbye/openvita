@@ -273,6 +273,12 @@ class ServeProfile(unittest.TestCase):
             self.assertTrue(json.load(f)[-1]["file"].endswith("/prep.md"))
 
 
+    def test_11_import_route(self):
+        # the Profile view's Credly / Microsoft Learn check: a JSON answer, never a plain 403
+        code, j = self.post("/profile-import", {"dry_run": True})
+        self.assertEqual(code, 400)
+        self.assertIn("Credly", j["message"])
+
     def test_10_assistant_heartbeat(self):
         # the AI chip: connected only while watch-feedback runs and its heartbeat is fresh.
         # Its own person, so the other tests' feedback.json stays as they left it.

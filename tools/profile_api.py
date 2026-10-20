@@ -57,3 +57,8 @@ def flag(c, d):
 
 def restore(c, d):
     return api.restore(root_of(c), d)
+
+
+def import_(c, d):
+    """Certifications from the Credly or Microsoft Learn pages in certifications.md (dry_run: only check)."""
+    return api.import_(root_of(c), d)
