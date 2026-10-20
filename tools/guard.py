@@ -46,7 +46,7 @@ ZERO = "0" * 40
 LOCAL_OK = ("local/README.md", "local/customers/README.md", "local/customers/_template.md")
 TEMPLATES_OK = ("templates/_shared/*", "templates/classic/*", "templates/sidebar/*", "templates/minimal/*",
                 "examples/templates/example-company/*")
-PERSONAL = ("cv.html", "job-ad.md", "notes.md", "tuning.md", "feedback.json", "openvita.json", "openself.json",
+PERSONAL = ("cv.html", "job-ad.md", "notes.md", "prep.md", "tuning.md", "feedback.json", "openvita.json", "openself.json",
             "person.md", "forbidden.txt")
 PERSONAL_EXT = (".pdf", ".docx", ".png", ".jpg", ".jpeg")
 PERSONAL_OK = ("examples/templates/example-company/assets/*",)  # images a template ships

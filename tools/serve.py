@@ -77,7 +77,9 @@ SAY = {
            "name-or-ad": "name or job ad missing", "unknown-template": "unknown template", "same-template": "Already uses this template",
            "switched": "Switched to {tpl}. The previous version is saved as a revision.", "not-switched": "Could not switch template",
            "only-apps": "Only applications with a job ad can be tailored", "requested": "Requested. The assistant tailors the CV, the page updates when it is done.",
-           "generate": "Tailor the CV to this job ad", "ad": "the job ad in job-ad.md", "no-pdf": "PDF not found. Wait until it is built.",
+           "generate": "Tailor the CV to this job ad", "ad": "the job ad in job-ad.md",
+           "prep-requested": "Requested. The assistant writes prep.md, the Prep tab shows it when it is done.",
+           "prep-only-apps": "Only applications with a job ad can be prepared for", "prep-include": "Pick at least one part", "no-pdf": "PDF not found. Wait until it is built.",
            "drafted": "Drafted from the profile. The previous version is saved as a revision.", "macos": "Only available on macOS"},
     "nb": {"no-profile": "ingen profil", "no-entry": "fant ikke oppføringen", "queued": "Allerede bestilt, venter på assistenten",
            "interview": "Bestilt. Assistenten spør deg i økten sin når den tar dette.",
@@ -86,7 +88,9 @@ SAY = {
            "name-or-ad": "navn eller annonse mangler", "unknown-template": "ukjent mal", "same-template": "Bruker allerede denne malen",
            "switched": "Byttet til {tpl}. Forrige versjon er lagret som revisjon.", "not-switched": "Kunne ikke bytte mal",
            "only-apps": "Bare søknader med annonse kan skreddersys", "requested": "Bestilt. Assistenten skreddersyr CV-en, siden oppdateres når den er ferdig.",
-           "generate": "Skreddersy CV-en til denne annonsen", "ad": "annonsen i job-ad.md", "no-pdf": "Fant ikke PDF-filen. Vent til den er bygget.",
+           "generate": "Skreddersy CV-en til denne annonsen", "ad": "annonsen i job-ad.md",
+           "prep-requested": "Bestilt. Assistenten skriver prep.md, fanen Forberedelse viser den når den er ferdig.",
+           "prep-only-apps": "Bare søknader med annonse kan forberedes", "prep-include": "Velg minst én del", "no-pdf": "Fant ikke PDF-filen. Vent til den er bygget.",
            "drafted": "Laget fra profilen. Forrige versjon er lagret som revisjon.", "macos": "Bare på macOS"},
 }
 
@@ -406,12 +410,16 @@ def profile_files(c):
     return [f"{shown}/{rel}" for rel in ["INDEX.md"] + pmodel.profile_files(p)]
 
 
+CASE_FILES = ("job-ad.md", "notes.md", "prep.md")  # an application's Markdown tabs, read-only in the browser
+PREP_PARTS = ("points", "stories", "questions", "ask")
+
+
 def cv_files(t, source="cv"):
-    """Repo-relative paths behind a CV view: cv.html, or the job ad, notes or a form tab."""
+    """Repo-relative paths behind a CV view: cv.html, or the job ad, notes, prep or a form tab."""
     c, path = parse(t)
     if source.startswith("form:") and re.fullmatch(r"form:[\w .-]+", source):
         return [f"local/{c}/{path}/forms/{source[5:]}.json"]
-    return [f"local/{c}/{path}/{source if source in ('job-ad.md', 'notes.md') else 'cv.html'}"]
+    return [f"local/{c}/{path}/{source if source in CASE_FILES else 'cv.html'}"]
 
 
 _spec = importlib.util.spec_from_file_location("fill_docx", os.path.join(ROOT, "tools", "fill-docx.py"))
@@ -785,6 +793,10 @@ PAGE = r"""<!doctype html>
   dialog textarea { height: 280px; resize: vertical; font: 12.5px/1.45 ui-monospace, Menlo, monospace; }
   dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; align-items: center; }
   dialog .row .msg { margin-right: auto; color: var(--warn); }
+  dialog textarea.short { height: 110px; font: inherit; }
+  dialog .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+  dialog .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: var(--fg); font-size: 13px; }
+  dialog .checks input { width: auto; }
   .chip.gen { border-color: var(--acc); color: var(--acc); }
   .tpl { background: #101012; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
   .tplgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -843,13 +855,15 @@ __ICONS__
   <div id="bar">
     <span id="tabs" class="cvonly"></span>
     <div class="state"><span class="dot" id="dot"></span><span id="msg" data-t="loading"></span>
-      <span class="chip gen cvonly" id="genchip" data-t="genQueued" hidden></span></div>
+      <span class="chip gen cvonly" id="genchip" data-t="genQueued" hidden></span>
+      <span class="chip gen cvonly" id="prepchip" data-t="prepQueued" hidden></span></div>
     <div id="pathbar"></div>
     <span class="sp"></span>
     <button class="btn cvonly" id="draftbtn" data-tt="draftTip"><svg class="i"><use href="#i-data"/></svg><span class="lbl" data-t="draft"></span></button>
     <button class="btn cvonly" id="revbtn" data-tt="revisionsTip"><svg class="i"><use href="#i-clock"/></svg><span class="lbl" data-t="revisions"></span></button>
     <button class="btn cvonly" id="savebtn" data-tt="saveTip"><svg class="i"><use href="#i-save"/></svg><span class="lbl" data-t="saveRev"></span><span class="pip" id="dirty" data-tt="unsaved" hidden></span></button>
     <button class="btn second cvonly" id="genbtn" data-tt="genTip" hidden><svg class="i"><use href="#i-spark"/></svg><span class="lbl" data-t="generate"></span></button>
+    <button class="btn second cvonly" id="prepbtn" data-tt="prepTip" hidden><svg class="i"><use href="#i-chat"/></svg><span class="lbl" data-t="prep"></span></button>
     <button class="btn" id="cmbtn" data-tt="commentsTip"><svg class="i"><use href="#i-chat"/></svg><span class="badge" id="cmcount2" hidden></span></button>
     <div class="menu cvonly"><button class="btn primary" id="pdfbtn" data-tt="pdfTip"><svg class="i"><use href="#i-file"/></svg><span data-t="exportPdf"></span><span class="caret">▾</span></button>
       <div class="menupop" id="pdfmenu" hidden>
@@ -884,6 +898,15 @@ __ICONS__
   <label for="ncad" data-t="adLabel"></label><textarea id="ncad" data-tp="adPh"></textarea>
   <div class="row"><span class="msg" id="ncmsg"></span><button class="btn" id="nccancel" data-t="cancel"></button>
   <button class="btn on" id="nccreate"><svg class="i"><use href="#i-plus"/></svg><span data-t="create"></span></button></div></dialog>
+<dialog id="prepdlg"><h2 data-t="prepTitle"></h2>
+  <label for="prepmeet" data-t="prepMeeting"></label><textarea id="prepmeet" class="short" data-tp="prepPh"></textarea>
+  <label data-t="prepInclude"></label><div class="checks">
+    <label><input type="checkbox" value="points" checked><span data-t="prepPoints"></span></label>
+    <label><input type="checkbox" value="stories" checked><span data-t="prepStories"></span></label>
+    <label><input type="checkbox" value="questions" checked><span data-t="prepQuestions"></span></label>
+    <label><input type="checkbox" value="ask" checked><span data-t="prepAsk"></span></label></div>
+  <div class="row"><span class="msg" id="prepmsg"></span><button class="btn" id="prepcancel" data-t="cancel"></button>
+  <button class="btn on" id="prepsend"><svg class="i"><use href="#i-spark"/></svg><span data-t="prepSend"></span></button></div></dialog>
 <div id="toast"></div>
 <script src="/vendor/pdfjs/pdf.min.js"></script>
 <script src="/vendor/marked/marked.min.js"></script>
@@ -907,7 +930,12 @@ const T = {
     adPh: 'Paste the job ad here', create: 'Create', copyPath: 'Click to copy the full path', pathCopied: 'Path copied',
     readOnly: 'Read only. Select text to comment.', shared: 'Shared', howItWorks: 'How it works', instructions: 'Instructions',
     profile: 'Profile', profileNone: 'no profile', personal: 'Personal instructions', baseCvs: 'Base CVs', apps: 'Applications',
-    newBtn: 'New', newAppTip: 'New application from a job ad', generic: 'General', adTab: 'Job ad', notesTab: 'Notes', formTab: 'Form: ',
+    newBtn: 'New', newAppTip: 'New application from a job ad', generic: 'General', adTab: 'Job ad', notesTab: 'Notes', prepTab: 'Prep', formTab: 'Form: ',
+    prep: 'Prepare', prepTip: 'Ask the assistant to brainstorm how to bring your experience into the interview or meeting',
+    prepTitle: 'Prepare for the meeting', prepMeeting: 'The meeting: what kind, who you meet, how long, anything else',
+    prepPh: 'First interview with the hiring manager and a tech lead, 45 minutes, on video. They care most about Kubernetes.',
+    prepInclude: 'Include', prepPoints: 'Talking points', prepStories: 'Stories (STAR)', prepQuestions: 'Likely questions and answers',
+    prepAsk: 'Questions to ask them', prepSend: 'Request', prepPickOne: 'Pick at least one part', prepItem: 'Prepare for the meeting', prepQueued: 'Prep requested',
     showingRev: 'Showing revision {0}, {1}. {2}', hits: '{0} hits', couldNotFetch: 'Could not fetch', notFound: 'Not found: {0}',
     revision: 'Revision', building: 'Building ...', buildError: 'Build error', updated: 'Updated {0}', lostServer: 'Lost contact with the server',
     buildingForm: 'Building form ...', formError: 'Could not make the form:\n', downloadDocx: 'Download filled .docx', updatedPlain: 'Updated',
@@ -942,7 +970,12 @@ const T = {
     adPh: 'Lim inn annonsen her', create: 'Opprett', copyPath: 'Klikk for å kopiere hele stien', pathCopied: 'Sti kopiert',
     readOnly: 'Skrivebeskyttet. Marker tekst for å kommentere.', shared: 'Delt', howItWorks: 'Slik virker det', instructions: 'Instruksjoner',
     profile: 'Profil', profileNone: 'ingen profil', personal: 'Personlige instruksjoner', baseCvs: 'Generelle CV-er', apps: 'Søknader',
-    newBtn: 'Ny', newAppTip: 'Ny søknad fra en annonse', generic: 'Generell', adTab: 'Annonse', notesTab: 'Notater', formTab: 'Skjema: ',
+    newBtn: 'Ny', newAppTip: 'Ny søknad fra en annonse', generic: 'Generell', adTab: 'Annonse', notesTab: 'Notater', prepTab: 'Forberedelse', formTab: 'Skjema: ',
+    prep: 'Forbered', prepTip: 'Be assistenten finne ut hvordan du får brukt erfaringen din i intervjuet eller møtet',
+    prepTitle: 'Forbered møtet', prepMeeting: 'Møtet: hva slags, hvem du møter, hvor lenge, ellers noe',
+    prepPh: 'Førstegangsintervju med leder og en tech lead, 45 minutter på video. De er mest opptatt av Kubernetes.',
+    prepInclude: 'Ta med', prepPoints: 'Budskap', prepStories: 'Historier (STAR)', prepQuestions: 'Sannsynlige spørsmål og svar',
+    prepAsk: 'Spørsmål du kan stille', prepSend: 'Bestill', prepPickOne: 'Velg minst én del', prepItem: 'Forbered møtet', prepQueued: 'Forberedelse bestilt',
     showingRev: 'Viser revisjon {0}, {1}. {2}', hits: '{0} treff', couldNotFetch: 'Kunne ikke hente', notFound: 'Fant ikke {0}',
     revision: 'Revisjon', building: 'Bygger ...', buildError: 'Byggefeil', updated: 'Oppdatert {0}', lostServer: 'Mistet kontakt med serveren',
     buildingForm: 'Bygger skjema ...', formError: 'Kunne ikke lage skjemaet:\n', downloadDocx: 'Last ned utfylt .docx', updatedPlain: 'Oppdatert',
@@ -1025,7 +1058,7 @@ function setTarget(t) {
   if (/\/(base|applications)\//.test(t)) { try { localStorage.setItem('openvita.cv.' + ctxC, t); } catch (e) { /* private window */ } }
   document.body.classList.remove('rail-open');
   drawSide(); drawNav(); drawBanner(); $('view').scrollTop = 0; tick(true); loadComments(); drawTitle();
-  $('genbtn').hidden = !t.includes('/applications/');
+  $('genbtn').hidden = $('prepbtn').hidden = !t.includes('/applications/');
 }
 // Markdown to safe HTML: marked, then a small sanitizer (pasted job ads can contain anything).
 function sanitize(html) {
@@ -1085,6 +1118,7 @@ function drawTabs() {
   const mk = (id, icn, label, kind) => { const b = el('button', 'tab k-' + kind + (tab === id ? ' on' : '')); b.append(icon(icn), el('span', 'tl', label));
     b.title = label; b.onclick = () => { tab = id; version = -1; drawTabs(); tick(true); }; tabs.append(b); };
   mk('cv', 'file', 'CV', 'cv'); if (files.includes('job-ad.md')) mk('job-ad.md', 'ad', tr('adTab'), 'ad'); if (files.includes('notes.md')) mk('notes.md', 'note', tr('notesTab'), 'note');
+  if (files.includes('prep.md')) mk('prep.md', 'chat', tr('prepTab'), 'note');
   for (const f of files) if (f.startsWith('form:')) mk(f, 'tag', tr('formTab') + f.slice(5), 'form');
 }
 function drawBanner() {
@@ -1184,7 +1218,9 @@ async function tick(force) {
           const a = el('a', 'btn formdl'); a.href = '/form-docx?' + q({ t: target, name }); a.download = name + '.docx';
           a.append(icon('open'), tr('downloadDocx')); view.prepend(a);
           $('msg').textContent = r.ok ? tr('updatedPlain') : tr('buildError'); $('dot').className = 'dot' + (r.ok ? '' : ' err'); }
-      } else if (version !== -2) { version = -2; formShown = '';
+      } else if ((version !== -2 || (s.mdver || {})[tab] + ':' + tab !== formShown) && !pointerDown && !$('cbox').classList.contains('show')) {
+        // Rendered again when the file changes, so the assistant's prep.md or notes show up while the tab is open.
+        version = -2; formShown = (s.mdver || {})[tab] + ':' + tab;
         const txt = await (await fetch('/file?' + q({ t: target, name: tab }), { cache: 'no-store' })).text();
         view.replaceChildren(renderMd(txt, tab === 'job-ad.md')); highlight(); }
     } else if (rev) {
@@ -1254,6 +1290,17 @@ async function generate() {
   const r = await fetch('/generate', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ t: target }) });
   const j = await r.json(); toast(j.message || (j.ok ? tr('requested') : tr('notRequested'))); loadComments();
 }
+function openPrep() { $('prepmsg').textContent = ''; $('prepdlg').showModal(); $('prepmeet').focus(); }
+async function requestPrep() {
+  const include = [...$('prepdlg').querySelectorAll('.checks input:checked')].map(i => i.value);
+  if (!include.length) { $('prepmsg').textContent = tr('prepPickOne'); return; }
+  $('prepsend').disabled = true;
+  const r = await fetch('/prep', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ t: target, meeting: $('prepmeet').value.trim(), include }) });
+  const j = await r.json(); $('prepsend').disabled = false;
+  if (!j.ok) { $('prepmsg').textContent = j.message || tr('notRequested'); return; }
+  $('prepdlg').close(); $('prepmeet').value = ''; toast(j.message || tr('requested')); loadComments();
+}
 async function redraft() {
   const post = force => fetch('/draft', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' },
     body: JSON.stringify({ t: target, force }) }).then(r => r.json());
@@ -1313,6 +1360,7 @@ function fillTemplates(list, current) {
 }
 $('draftbtn').onclick = redraft;
 $('nccreate').onclick = createCase; $('nccancel').onclick = () => $('newcase').close(); $('genbtn').onclick = generate;
+$('prepbtn').onclick = openPrep; $('prepsend').onclick = requestPrep; $('prepcancel').onclick = () => $('prepdlg').close();
 let cctx = null;
 function checkSel() {
   const sel = getSelection(); if (!sel || sel.isCollapsed || !sel.rangeCount) return;
@@ -1347,7 +1395,8 @@ async function loadComments() {
   const open = comments.filter(c => c.status === 'open').length;
   for (const id of ['cmcount', 'cmcount2']) { $(id).hidden = !open; $(id).textContent = open; }
   $('genchip').hidden = !comments.some(c => c.status === 'open' && c.kind === 'generate' && c.target === target);
-  $('genbtn').hidden = !target.includes('/applications/');
+  $('prepchip').hidden = !comments.some(c => c.status === 'open' && c.kind === 'prep' && c.target === target);
+  $('genbtn').hidden = $('prepbtn').hidden = !target.includes('/applications/');
   drawComments();
 }
 function drawComments() {
@@ -1360,6 +1409,7 @@ function drawComments() {
   for (const c of [...shown].sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || b.id - a.id)) {
     const d = el('div', 'cm' + (c.status === 'done' ? ' done' : ''));
     if (c.kind === 'generate') d.append(el('div', '', tr('genItem')));
+    else if (c.kind === 'prep') d.append(el('div', '', tr('prepItem') + (c.comment ? ': ' + c.comment : '')));
     else if (c.kind === 'profile-interview') d.append(el('div', '', tr('interview', c.entry || tr('theProfile')) + (c.comment ? ': ' + c.comment : '')));
     else d.append(el('div', 'q', '«' + c.quote + '»'), el('div', '', c.comment));
     if (c.note) d.append(el('div', 'note', tr('assistant') + c.note));
@@ -1548,7 +1598,8 @@ class Handler(BaseHTTPRequestHandler):
                 with lock:
                     body.update(state_of(t))
                 body["ok"] = True
-                body["files"] = [n for n in ("job-ad.md", "notes.md") if os.path.isfile(os.path.join(d, n))]
+                body["files"] = [n for n in CASE_FILES if os.path.isfile(os.path.join(d, n))]
+                body["mdver"] = {n: os.path.getmtime(os.path.join(d, n)) for n in body["files"]}
                 body["files"] += ["form:" + n for n in forms(t)]
                 body["formver"] = {n: max((os.path.getmtime(os.path.join(d, "forms", n + ext))
                                            for ext in (".docx", ".json") if os.path.isfile(os.path.join(d, "forms", n + ext))))
@@ -1556,7 +1607,7 @@ class Handler(BaseHTTPRequestHandler):
                 body["template"] = current_template(t)
                 body["templates"] = template_list(c, body["template"])
                 body["root"] = ROOT
-                body["paths"] = {"cv": cv_files(t), "job-ad.md": cv_files(t, "job-ad.md"), "notes.md": cv_files(t, "notes.md"),
+                body["paths"] = {"cv": cv_files(t), **{n: cv_files(t, n) for n in CASE_FILES},
                                  "pdf": [os.path.relpath(pdf_path(t), ROOT)]}
                 for n in forms(t):
                     body["paths"]["form:" + n] = cv_files(t, "form:" + n) + [os.path.relpath(
@@ -1575,7 +1626,7 @@ class Handler(BaseHTTPRequestHandler):
             self.file(f, "image/png") if f else self.send(404, b"no preview", "text/plain")
         elif u.path == "/doc" and DOC_RE.fullmatch(t):
             self.json(dict(doc_view(t), root=ROOT))
-        elif u.path == "/file" and valid(t) and q.get("name") in ("job-ad.md", "notes.md"):
+        elif u.path == "/file" and valid(t) and q.get("name") in CASE_FILES:
             self.file(os.path.join(case_dir(t), q["name"]), "text/plain; charset=utf-8")
         elif u.path in ("/form-pdf", "/form-docx") and valid(t) and q.get("name") in forms(t):
             try:
@@ -1630,7 +1681,7 @@ class Handler(BaseHTTPRequestHandler):
         # Only the page itself may act: custom header (forces a CORS preflight) and a local Host.
         host_ok = self.headers.get("Host", "") in (f"127.0.0.1:{PORT}", f"localhost:{PORT}")
         path = urlparse(self.path).path
-        if path not in ("/save", "/reveal", "/copy", "/comment", "/comment-status", "/new-case", "/generate", "/set-template", "/draft") \
+        if path not in ("/save", "/reveal", "/copy", "/comment", "/comment-status", "/new-case", "/generate", "/prep", "/set-template", "/draft") \
                 + PROFILE_POSTS or self.headers.get("X-OpenVita") != "1" or not host_ok:
             return self.send(403, b"forbidden", "text/plain")
         size = int(self.headers.get("Content-Length", "0") or 0)
@@ -1720,6 +1771,25 @@ class Handler(BaseHTTPRequestHandler):
                               "quote": say(c, "ad"), "comment": say(c, "generate"), "status": "open", "note": ""})
                 store_feedback(c, items)
             return self.json({"ok": True, "message": say(c, "requested")})
+        if path == "/prep":
+            t = str(data.get("t", ""))
+            if not valid(t) or not t.split("/")[1] == "applications" or not os.path.isfile(os.path.join(case_dir(t), "job-ad.md")):
+                return self.json({"ok": False, "message": say(parse(t)[0] if valid(t) else "", "prep-only-apps")}, 400)
+            c, _ = parse(t)
+            parts = data.get("include")
+            include = [p for p in PREP_PARTS if isinstance(parts, list) and p in parts]
+            if not include:
+                return self.json({"ok": False, "message": say(c, "prep-include")}, 400)
+            with fb_lock:
+                items = load_feedback(c)
+                if any(i.get("kind") == "prep" and i.get("target") == t and i.get("status") == "open" for i in items):
+                    return self.json({"ok": True, "message": say(c, "queued")})
+                items.append({"id": max([i.get("id", 0) for i in items] + [0]) + 1, "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                              "target": t, "kind": "prep", "file": cv_files(t, "prep.md")[0], "source": "prep.md", "page": 0, "revision": "",
+                              "quote": "", "comment": str(data.get("meeting", "")).strip()[:2000], "include": include,
+                              "status": "open", "note": ""})
+                store_feedback(c, items)
+            return self.json({"ok": True, "message": say(c, "prep-requested")})
         if path == "/comment-status":
             c = str(data.get("c", ""))
             if not re.fullmatch(r"[\w.-]+", c) or data.get("status") not in ("open", "done", "archived", "delete"):

@@ -34,7 +34,7 @@ local/                  everything personal, gitignored, one folder per person (
     feedback.json           comments and requests from the workbench, kept as history
     photo.jpg               optional
     base/<variant>/cv.html  general CVs (generic, and any variant the person wants)
-    applications/<yyyy-mm-company-role>/   cv.html, job-ad.md, notes.md, forms/
+    applications/<yyyy-mm-company-role>/   cv.html, job-ad.md, notes.md, prep.md, forms/
     profile/                the profile, unless openvita.json points elsewhere; its own git repository
     private/intake/         old CVs, LinkedIn PDF and other source material, never copied as is
     releases/               numbered PDFs from `make release`
@@ -120,16 +120,45 @@ Leave `base/` alone unless the person asks for their general CV to change.
    renders a PDF with LibreOffice for checking.
 4. Tell the person which fields were left for them (birth year, start date, rate).
 
+## Preparing for a meeting
+
+A `prep` request asks how the person can bring their own experience into an interview or a
+customer meeting for one application. `comment` is what they told you about the meeting (kind,
+who they meet, length), `include` the parts they want: `points`, `stories`, `questions`, `ask`.
+
+1. Read what tailoring reads (step 2 above), plus the application's `job-ad.md`, `notes.md` and
+   `cv.html`: they have seen the CV, so the prep should match it.
+2. If `prep.md` exists, `make save C=<name>` first, then write it again.
+3. Write `prep.md` in the language of the ad, as Markdown, with only the parts in `include`, in
+   this order:
+   - A short header: the meeting as they described it, today's date, and the profile commit it
+     is built from (`git -C <profile> rev-parse --short HEAD`).
+   - **Talking points** (`points`): 3 to 6 things to get across, each tied to what the ad asks for.
+   - **Stories** (`stories`): situation, task, action, result, from assignments, told so the
+     person can say it in two minutes. Say per story what must not be said: a customer that is
+     `nda` or `anonymised` gets the description the profile allows, `⚑ omit` stays out.
+   - **Likely questions** (`questions`): with an answer built from the profile, including the
+     hard ones (a requirement the profile does not show, a gap in the timeline). The answer to
+     those is honest: what they have that comes close, or that they have not done it.
+   - **Questions to ask them** (`ask`): from the ad, `notes.md` and `local/customers/<company>.md`.
+   - **Gaps**, always: what the ad asks for that the profile does not show. These are questions
+     for the person, not something to cover up.
+4. Cite every point, story and answer with `<id>#<section>`. Nothing without a citation, and
+   nothing the profile does not say: reframing is fine, new facts are not.
+5. Set the item `done` with a note on the biggest gap. What the person says about the prep
+   (a comment with `source: prep.md`) goes back into `prep.md`, and lasting lessons into
+   `tuning.md` as usual.
+
 ## Handling feedback
 
-Each item in `local/<name>/feedback.json` has `kind` (`comment`, `generate`, or
+Each item in `local/<name>/feedback.json` has `kind` (`comment`, `generate`, `prep` or
 `profile-interview`), `file` (the path the selected text is from), `target`, `source`, `quote`,
 `comment`, `revision` (set when written on an old revision), `status` (`open`, `done`,
 `archived`) and `note`.
 
 | `target` | `source` | What it is |
 |---|---|---|
-| `<name>/base/<v>`, `<name>/applications/<app>` | `cv`, `job-ad.md`, `notes.md` | A CV, or its ad or notes. |
+| `<name>/base/<v>`, `<name>/applications/<app>` | `cv`, `job-ad.md`, `notes.md`, `prep.md` | A CV, or its ad, notes or meeting prep. |
 | `<name>/applications/<app>` | `form:<form>` | A filled form. Edit `forms/<form>.json`, never the .docx. |
 | `<name>/raw` | `profile` | The person's profile. `file` is the entry, `section` the section id. |
 | `<name>/personal` | `personal` | The person's `AGENTS.md` and `tuning.md`. |
@@ -145,7 +174,8 @@ For each open item:
    `make lint-profile` and `make profile-commit` for that entry.
 3. `source: prompt` or `personal` asks to change the instructions. Personal wishes go in
    `local/<name>/AGENTS.md`. Shared rules change only through a pull request to this repository.
-4. `generate`: follow "Tailoring a CV to a job". `profile-interview`: interview the person about
+4. `generate`: follow "Tailoring a CV to a job". `prep`: follow "Preparing for a meeting".
+   `profile-interview`: interview the person about
    `entry` (empty: a new one) as phase 3 of the onboarding skill, then index, lint and
    `make profile-commit ACTOR=claude`.
 5. Set `status` to `done` with a short `note`. Never delete items: the person archives them.

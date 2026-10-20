@@ -37,6 +37,9 @@ def line(i, prefix):
     f = i.get("file") or i["target"]
     if i.get("kind") == "generate":
         return f"{prefix}TAILOR CV #{i['id']} [{i['target']}] file={f}: write the CV for this job ad (Tailoring in AGENTS.md, read tuning.md)"
+    if i.get("kind") == "prep":
+        return (f"{prefix}MEETING PREP #{i['id']} [{i['target']}] file={f} include={','.join(i.get('include') or [])}: "
+                f"{i.get('comment') or '(no details about the meeting)'} (Preparing for a meeting in AGENTS.md, read tuning.md)")
     if i.get("kind") == "profile-interview":
         return (f"{prefix}PROFILE INTERVIEW #{i['id']} [{i['target']}] entry={i.get('entry') or '(new)'} file={f}: "
                 f"{i['comment']}{' | about: ' + i['quote'][:200] if i.get('quote') else ''} "
