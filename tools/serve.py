@@ -667,8 +667,8 @@ PAGE = r"""<!doctype html>
   .grp:first-child { margin-top: 4px; }
   .item { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; background: none; border: 0;
           color: var(--fg); padding: 8px; border-radius: 6px; cursor: pointer; font: inherit; }
-  .item.two { flex-direction: column; align-items: flex-start; gap: 2px; }
-  .item.two small { margin-left: 0; }
+  .item.two .col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }  /* an application: name over its month */
+  .item.two .col small { margin-left: 0; }
   .health { margin-top: auto; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--bg);
             text-align: left; color: var(--fg); font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
   .health:hover { border-color: #4a4a52; } .health b { font-size: 13px; margin-bottom: 4px; }
@@ -1185,8 +1185,10 @@ async function showDoc(g) {
 function drawSide() {
   const side = $('side'); side.replaceChildren();
   const add = (icn, label, small, k, two) => { const b = el('button', 'item' + (two ? ' two' : '') + (k === target ? ' on' : ''));
-    if (!two) b.append(icon(icn)); b.append(el('span', '', label));
-    if (small) b.append(el('small', '', small)); b.onclick = () => setTarget(k); side.append(b); };
+    b.append(icon(icn));
+    if (two) { const col = el('div', 'col'); col.append(el('span', '', label), el('small', '', small)); b.append(col); }
+    else { b.append(el('span', '', label)); if (small) b.append(el('small', '', small)); }
+    b.onclick = () => setTarget(k); side.append(b); };
   const grp = (text, onAdd) => { const g = el('div', 'grp'); g.append(el('span', '', text));
     if (onAdd) { const b = el('button', 'add'); b.append(icon('plus'), tr('newBtn')); b.title = tr('newAppTip'); b.onclick = onAdd; g.append(b); } side.append(g); };
   const c = tree.find(x => x.person === ctxC);
@@ -1194,7 +1196,7 @@ function drawSide() {
   if (c.base.length) { grp(tr('baseCvs'));
     for (const v of c.base) add('file', v === 'generic' ? tr('generic') : v, '', c.person + '/base/' + v); }
   grp(tr('apps'), () => openNewCase(c.person));
-  for (const a of c.apps) add('', a.replace(/^\d{4}-\d{2}-/, '').replace(/-/g, ' '), a.slice(0, 7), c.person + '/applications/' + a, true);
+  for (const a of c.apps) add('case', a.replace(/^\d{4}-\d{2}-/, '').replace(/-/g, ' '), a.slice(0, 7), c.person + '/applications/' + a, true);
   grp(tr('forAssistant')); add('spark', tr('personal'), 'tuning', c.person + '/personal');
   const h = el('button', 'health'); h.append(el('b', '', tr('health')));
   if (c.stats) { h.append(el('span', '', tr('healthCounts', c.stats.assignments, c.stats.employments)));
