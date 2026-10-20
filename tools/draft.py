@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """A first CV straight from the OpenSelf profile, in the shared markup every template styles.
 
-    python3 tools/draft.py C [--variant generic | --app NAME] [--template NAME] [--lang en|nb] [--force]
+    python3 tools/draft.py C [--variant generic | --app NAME] [--template NAME] [--lang en|nb]
+                           [--customers named|hidden] [--force]
 
 Writes local/<c>/base/<variant>/cv.html (or applications/<app>/cv.html). The draft is a starting
 point: an assistant or the person rewrites it for the reader (guide/writing.md). It refuses to
@@ -15,6 +16,8 @@ portfolio site or any other export reads:
 - an entry with an `omit` flag keeps its facts (title, period, technology) but none of its
   text, and the wish is left as a comment in the HTML for whoever edits the CV next,
 - removed entries (_removed/) are never used.
+With "customers": "hidden" in openvita.json (or --customers hidden) no customer is named at all,
+only its alias or sector, and the draft warns about any name still in the text it copied.
 Every block carries data-entry (and data-section) with the profile id it came from.
 """
 
@@ -116,14 +119,20 @@ def entry(e, title, org, date, body, tags):
     return "\n".join(out)
 
 
-def build(c, template, lang, profile_dir=""):
+def names(c, customers=""):
+    """True when the CV may name customers (the profile still decides which): the default, unless
+    --customers or openvita.json "customers" says hidden."""
+    return (customers or profiles.config(c).get("customers") or "named") != "hidden"
+
+
+def build(c, template, lang, profile_dir="", customers=""):
     """The CV of person c, or of the profile in profile_dir (without a photo) when given. It reads
     OpenSelf's public view, so it shows what every other export shows."""
     if profile_dir:
         p = model.load_profile(profile_dir)
     else:
         p = model.load_profile(profiles.profile_dir(c)) if profiles.exists(c) else None
-    v = export.public_view(p) if p else {}
+    v = export.public_view(p, names(c, customers) if not profile_dir else customers != "hidden", lang) if p else {}
     w = WORDS[lang]
     meta = v.get("person") or {}
     wishes = lambda item: export.omitted(p.entries[item["id"]]) if item.get("omit") else []
@@ -238,7 +247,18 @@ def target(c, variant="generic", app=""):
     return os.path.join(profiles.person_dir(c), *(("applications", app) if app else ("base", variant)), "cv.html")
 
 
-def write(c, variant="generic", app="", template="", lang="", force=False):
+def warn_names(c, text, customers=""):
+    """With names hidden, the customer names still in the CV's text (the owner's own words)."""
+    if names(c, customers) or not profiles.exists(c):
+        return []
+    found = export.leaks(text, model.load_profile(profiles.profile_dir(c)), names=False)
+    for name in found:
+        print(f"warning: the CV names {name!r} although customers are hidden; reword it in the profile "
+              f"or the CV", file=sys.stderr)
+    return found
+
+
+def write(c, variant="generic", app="", template="", lang="", force=False, customers=""):
     path = target(c, variant, app)
     if os.path.exists(path) and edited(path) and not force:
         raise SystemExit(f"{path} was edited after the last draft; use --force (FORCE=1) to replace it")
@@ -252,7 +272,9 @@ def write(c, variant="generic", app="", template="", lang="", force=False):
     if t["markup"] != templates.MARKUP:
         raise SystemExit(f"{t['label']} styles its own markup ({t['markup']}), so a draft cannot be written for it; "
                          f"draft with a template in openvita markup (TEMPLATE=classic), or edit this CV by hand")
-    text = stamp(build(c, t, lang if lang in WORDS else profiles.language(c)))
+    body = build(c, t, lang if lang in WORDS else profiles.language(c), customers=customers)
+    warn_names(c, body, customers)
+    text = stamp(body)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)
@@ -286,13 +308,15 @@ def main(argv=None):
     ap.add_argument("--app", default="")
     ap.add_argument("--template", default="")
     ap.add_argument("--lang", default="", choices=["", *WORDS])
+    ap.add_argument("--customers", default="", choices=["", "named", "hidden"],
+                    help="name customers (as the profile allows) or show only their alias or sector")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--switch", metavar="FILE", help="only move FILE to --template (see switch())")
     a = ap.parse_args(argv)
     if a.switch:
         print(f"{switch(a.c, a.switch, a.template)} now uses template {a.template}")
         return 0
-    print(write(a.c, a.variant, a.app, a.template, a.lang, a.force))
+    print(write(a.c, a.variant, a.app, a.template, a.lang, a.force, a.customers))
     return 0
 
 

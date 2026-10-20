@@ -6,7 +6,8 @@
 #   make new-person C=kari [PROFILE=path]     set up local/kari/, connect or create the profile, draft the base CV
 #   make connect C=kari PROFILE=path          use an existing OpenSelf profile (or an OpenSelf home)
 #   make connect-home C=kari HOME=path [VAULT=cv]   keep kari's whole folder encrypted in an OpenSelf home
-#   make draft  C=kari [VARIANT=x | APP=x] [TEMPLATE=x] [CVLANG=en|nb] [FORCE=1]   CV straight from the profile
+#   make draft  C=kari [VARIANT=x | APP=x] [TEMPLATE=x] [CVLANG=en|nb] [CUSTOMERS=named|hidden] [FORCE=1]
+#                                             CV straight from the profile
 #   make cv     C=kari [VARIANT=x | APP=x]    -> build/kari/base/generic/kari-generic.pdf (or the application's)
 #   make png    C=kari [VARIANT=x | APP=x]    PNG preview of each page, next to the PDF
 #   make serve  [C=kari] [VARIANT=x | APP=x] [PORT=8000]   browser workbench, rebuilds on every save
@@ -134,7 +135,7 @@ connect-home: check-c
 
 draft: check-c
 	@python3 tools/draft.py $(C) $(if $(APP),--app $(APP),--variant $(VARIANT)) $(if $(TEMPLATE),--template $(TEMPLATE)) \
-	  $(if $(CVLANG),--lang $(CVLANG)) $(if $(FORCE),--force)
+	  $(if $(CVLANG),--lang $(CVLANG)) $(if $(CUSTOMERS),--customers $(CUSTOMERS)) $(if $(FORCE),--force)
 
 new-person: check-c
 	@test ! -e $(DIR) || { echo "$(DIR) already exists"; exit 1; }
