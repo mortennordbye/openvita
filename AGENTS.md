@@ -99,7 +99,8 @@ Run from the repository root. Rendering happens in the `openvita` Docker image, 
 When someone pastes a job ad or names a role, or the workbench sends a `generate` request:
 
 1. `make new C=<name> APP=<yyyy-mm-company-role>` and save the ad in its `job-ad.md`. (The
-   workbench has already done this for a `generate` request.)
+   workbench has already done this for a `generate` request, and saved a revision before
+   queueing it, as its confirm dialog promises the person.)
 2. Read the profile the way `guide/profile.md` says: `INDEX.md` first, then the entries that match
    (grep `tech`, sector, role), with their flags and `customer_public`. Then the person's
    `AGENTS.md` and `tuning.md`, and `local/customers/<company>.md` if it exists.

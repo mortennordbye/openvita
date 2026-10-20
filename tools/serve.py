@@ -809,6 +809,9 @@ PAGE = r"""<!doctype html>
   dialog .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
   dialog .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: var(--fg); font-size: 13px; }
   dialog .checks input { width: auto; }
+  dialog ul.what { margin: 0; padding-left: 18px; line-height: 1.55; } dialog ul.what li { margin: 4px 0; }
+  dialog .aiwhen { margin: 12px 0 0; color: var(--mut); font-size: 12.5px; } dialog .aiwhen.on { color: var(--fg); }
+  dialog .warnline { margin: 8px 0 0; color: var(--warn); font-size: 12.5px; }
   .chip.gen { border-color: var(--acc); color: var(--acc); }
   .ai { display: flex; align-items: center; gap: 7px; background: none; border: 1px solid var(--line); color: var(--mut);
     border-radius: 99px; padding: 4px 11px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
@@ -916,6 +919,11 @@ __ICONS__
   <label for="ncad" data-t="adLabel"></label><textarea id="ncad" data-tp="adPh"></textarea>
   <div class="row"><span class="msg" id="ncmsg"></span><button class="btn" id="nccancel" data-t="cancel"></button>
   <button class="btn on" id="nccreate"><svg class="i"><use href="#i-plus"/></svg><span data-t="create"></span></button></div></dialog>
+<dialog id="gendlg"><h2 data-t="genTitle"></h2>
+  <ul class="what"><li data-t="genWhat1"></li><li data-t="genWhat2"></li><li data-t="genWhat3"></li></ul>
+  <p class="aiwhen" id="genai"></p><p class="warnline" id="genwarn" hidden data-t="genShortAd"></p>
+  <div class="row"><button class="btn" id="gencancel" data-t="cancel"></button>
+  <button class="btn on" id="gensend"><svg class="i"><use href="#i-spark"/></svg><span data-t="generate"></span></button></div></dialog>
 <dialog id="prepdlg"><h2 data-t="prepTitle"></h2>
   <label for="prepmeet" data-t="prepMeeting"></label><textarea id="prepmeet" class="short" data-tp="prepPh"></textarea>
   <label data-t="prepInclude"></label><div class="checks">
@@ -953,6 +961,13 @@ const T = {
     prepTitle: 'Prepare for the meeting', prepMeeting: 'The meeting: what kind, who you meet, how long, anything else',
     prepPh: 'First interview with the hiring manager and a tech lead, 45 minutes, on video. They care most about Kubernetes.',
     prepInclude: 'Include', prepPoints: 'Talking points', prepStories: 'Stories (STAR)', prepQuestions: 'Likely questions and answers',
+    genTitle: 'Tailor the CV to this job?',
+    genWhat1: 'The assistant rewrites the CV for this application from the job ad, your profile and your instructions.',
+    genWhat2: 'The version you have now is saved as a revision first, so you can always go back.',
+    genWhat3: 'Only facts from your profile are used. Notes says what was emphasised and why.',
+    genAiOn: 'AI connected: it starts right away, and the CV updates when it is done.',
+    genAiOff: 'No AI connected: the request waits until an assistant connects.',
+    genShortAd: 'The job ad looks short or empty. Paste the whole ad first for a better result.',
     prepAsk: 'Questions to ask them', prepSend: 'Request', prepPickOne: 'Pick at least one part', prepItem: 'Prepare for the meeting', prepQueued: 'Prep requested',
     showingRev: 'Showing revision {0}, {1}. {2}', hits: '{0} hits', couldNotFetch: 'Could not fetch', notFound: 'Not found: {0}',
     revision: 'Revision', building: 'Building ...', buildError: 'Build error', updated: 'Updated {0}', lostServer: 'Lost contact with the server',
@@ -996,6 +1011,13 @@ const T = {
     prepTitle: 'Forbered møtet', prepMeeting: 'Møtet: hva slags, hvem du møter, hvor lenge, ellers noe',
     prepPh: 'Førstegangsintervju med leder og en tech lead, 45 minutter på video. De er mest opptatt av Kubernetes.',
     prepInclude: 'Ta med', prepPoints: 'Budskap', prepStories: 'Historier (STAR)', prepQuestions: 'Sannsynlige spørsmål og svar',
+    genTitle: 'Skreddersy CV-en til denne stillingen?',
+    genWhat1: 'Assistenten skriver om CV-en for denne søknaden ut fra annonsen, profilen og instruksjonene dine.',
+    genWhat2: 'Versjonen du har nå lagres som en revisjon først, så du kan alltid gå tilbake.',
+    genWhat3: 'Bare fakta fra profilen brukes. Notater forteller hva som er vektlagt og hvorfor.',
+    genAiOn: 'AI tilkoblet: den starter med en gang, og CV-en oppdateres når den er ferdig.',
+    genAiOff: 'Ingen AI tilkoblet: bestillingen venter til en assistent kobler til.',
+    genShortAd: 'Annonsen ser kort eller tom ut. Lim inn hele annonsen først for et bedre resultat.',
     prepAsk: 'Spørsmål du kan stille', prepSend: 'Bestill', prepPickOne: 'Velg minst én del', prepItem: 'Forbered møtet', prepQueued: 'Forberedelse bestilt',
     showingRev: 'Viser revisjon {0}, {1}. {2}', hits: '{0} treff', couldNotFetch: 'Kunne ikke hente', notFound: 'Fant ikke {0}',
     revision: 'Revisjon', building: 'Bygger ...', buildError: 'Byggefeil', updated: 'Oppdatert {0}', lostServer: 'Mistet kontakt med serveren',
@@ -1310,7 +1332,18 @@ async function createCase() {
   $('newcase').close(); const s = await (await fetch('/state', { cache: 'no-store' })).json(); tree = s.tree;
   setTarget(j.target); tab = 'job-ad.md'; toast(tr('appCreated'));
 }
+// Tailor CV asks first: what will happen, whether an assistant is listening, and if the ad looks empty.
+async function openGen() {
+  $('genai').textContent = tr(ai.connected ? 'genAiOn' : 'genAiOff'); $('genai').classList.toggle('on', ai.connected);
+  $('genwarn').hidden = true; $('gendlg').showModal(); $('gensend').focus();
+  try {
+    const ad = await (await fetch('/file?' + q({ t: target, name: 'job-ad.md' }), { cache: 'no-store' })).text();
+    const body = ad.split('\n').filter(l => !/^#|^\w+:/.test(l.trim())).join(' ').trim();
+    $('genwarn').hidden = body.length >= 300 && !/no ad yet|ingen annonse/i.test(ad);
+  } catch (e) { /* the warning is only a hint */ }
+}
 async function generate() {
+  $('gendlg').close();
   const r = await fetch('/generate', { method: 'POST', headers: { 'X-OpenVita': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ t: target }) });
   const j = await r.json(); toast((j.message || (j.ok ? tr('requested') : tr('notRequested'))) + (j.ok ? aiNote() : '')); loadComments();
 }
@@ -1383,7 +1416,7 @@ function fillTemplates(list, current) {
   nc.value = keep || current || 'classic';
 }
 $('draftbtn').onclick = redraft;
-$('nccreate').onclick = createCase; $('nccancel').onclick = () => $('newcase').close(); $('genbtn').onclick = generate;
+$('nccreate').onclick = createCase; $('nccancel').onclick = () => $('newcase').close(); $('genbtn').onclick = openGen; $('gensend').onclick = generate; $('gencancel').onclick = () => $('gendlg').close();
 $('prepbtn').onclick = openPrep; $('prepsend').onclick = requestPrep; $('prepcancel').onclick = () => $('prepdlg').close();
 let cctx = null;
 function checkSel() {
@@ -1805,6 +1838,7 @@ class Handler(BaseHTTPRequestHandler):
                 items = load_feedback(c)
                 if any(i.get("kind") == "generate" and i.get("target") == t and i.get("status") == "open" for i in items):
                     return self.json({"ok": True, "message": say(c, "queued")})
+                save_revision(c, f"Before tailoring {t.split('/', 1)[1]}")  # the confirm dialog promises this
                 items.append({"id": max([i.get("id", 0) for i in items] + [0]) + 1, "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
                               "target": t, "kind": "generate", "file": cv_files(t, "job-ad.md")[0], "source": "job-ad.md", "page": 0, "revision": "",
                               "quote": say(c, "ad"), "comment": say(c, "generate"), "status": "open", "note": ""})
