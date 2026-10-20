@@ -661,7 +661,7 @@ PAGE = r"""<!doctype html>
   #side { grid-area: side; border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; }
   #rail { grid-area: rail; border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 10px;
           overflow: hidden; min-height: 0; }
-  #main { grid-area: main; display: grid; grid-template-rows: auto auto 1fr; min-width: 0; min-height: 0; }
+  #main { grid-area: main; display: grid; grid-template-rows: auto auto 1fr; min-width: 0; min-height: 0; position: relative; container-type: inline-size; }
   .grp { display: flex; align-items: center; gap: 7px; margin: 14px 8px 4px; color: var(--mut); font-size: 11px;
          letter-spacing: .07em; text-transform: uppercase; }
   .grp:first-child { margin-top: 4px; }
@@ -697,19 +697,31 @@ PAGE = r"""<!doctype html>
   .btn:hover { background: var(--hover); }
   .btn.on { background: var(--acc); border-color: var(--acc); color: #0b1220; }
   .sp { flex: 1; }
-  /* The toolbar over the CV: what you look at, its state, what you can do. Narrow: icons only. */
-  #bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--line);
+  /* The bar over the CV: what you look at (tabs) and its state. The actions live in the dock. */
+  #bar { display: flex; align-items: stretch; gap: 10px; padding: 0 18px; min-height: 44px; border-bottom: 1px solid var(--line);
          position: relative; container-type: inline-size; min-width: 0; }
+  #bar > * { align-self: center; } #bar > #tabs { align-self: stretch; }
   #bar .btn, #tabs { flex: none; }
-  .state { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--mut); white-space: nowrap; }
-  @container (max-width: 1100px) { #bar #pathbar { display: none; } }
-  @container (max-width: 640px) { #bar .btn:not(.primary) .lbl { display: none; } }
+  .state { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--mut); white-space: nowrap; font-size: 12.5px; }
+  @container (max-width: 900px) { #bar #pathbar { display: none; } }
+  /* The dock: one neutral row floating over the bottom of the document. Only the PDF button is filled. */
+  #dock { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 7; display: flex; align-items: center; gap: 2px;
+          background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--line);
+          border-radius: 12px; padding: 5px; box-shadow: 0 14px 34px rgba(0,0,0,.5); max-width: calc(100% - 24px); transition: opacity .15s; }
+  #dock .btn { border-color: transparent; background: none; padding: 6px 10px; }
+  #dock .btn:hover { background: var(--hover); } #dock .btn.icon { padding: 6px 8px; } #dock .btn.icon .lbl { display: none; }
+  #dock .btn.primary { background: var(--fg); border-color: var(--fg); color: #0b1220; font-weight: 600; margin-left: 2px; }
+  #dock .btn.primary:hover { background: #fff; }
+  .dgroup { display: contents; } #aigroup:not(:has(.btn:not([hidden]))) { display: none; }
+  .dsep { width: 1px; align-self: stretch; background: var(--line); margin: 4px 4px; }
+  #dock .menupop { top: auto; bottom: calc(100% + 10px); }
+  #dock .pop { top: auto; bottom: calc(100% + 10px); right: 0; }
+  body:has(#cbox.show) #dock { opacity: 0; pointer-events: none; }  /* out of the way while writing a comment */
+  @container (max-width: 640px) { #dock .btn .lbl { display: none; } #dock { bottom: 12px; } }
   .btn.primary { background: var(--acc); border-color: var(--acc); color: #0b1220; font-weight: 600; }
   .btn.primary:hover { background: color-mix(in srgb, var(--acc) 85%, #fff); }
-  .btn.second { border-color: color-mix(in srgb, var(--acc2) 60%, var(--line)); color: color-mix(in srgb, var(--acc2) 80%, var(--fg)); }
   .btn.ghost { border-color: transparent; color: var(--mut); } .btn.ghost:hover { color: var(--fg); }
-  .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-left: 2px; }
-  #savebtn:has(.pip:not([hidden])) { border-color: color-mix(in srgb, var(--ok) 60%, transparent); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-left: 2px; }  /* unsaved changes */
   #pathbar { display: flex; flex: 1 1 auto; gap: 2px; align-items: center; min-width: 0; overflow: hidden; margin-left: 6px; }
   #pathbar .p { display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; color: var(--mut); cursor: pointer;
                 padding: 3px 7px; border-radius: 5px; font: 12px ui-monospace, Menlo, monospace; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
@@ -722,15 +734,13 @@ PAGE = r"""<!doctype html>
   .mi { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: 0; color: var(--fg); text-decoration: none;
         padding: 7px 9px; border-radius: 6px; cursor: pointer; font: inherit; text-align: left; flex-wrap: wrap; }
   .mi:hover { background: #26262a; } .mi small { flex-basis: 100%; padding-left: 25px; color: var(--mut); font-size: 11px; }
-  #bar .pop { top: 100%; right: 18px; }
   .tab .tl { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-  /* Document tabs: segmented like OpenSelf's, each kind keeps its colour on the icon. */
+  /* Document tabs: underlined, one colour; the icon says what kind of file it is. */
   #tabs { display: inline-flex; gap: 2px; white-space: nowrap; }
-  .tab { display: inline-flex; align-items: center; gap: 7px; background: none; border: 0; color: var(--mut);
-         padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13.5px; }
-  .tab svg { color: var(--k); } .tab:hover { color: var(--fg); background: var(--hover); }
-  .tab.on { color: #fff; background: var(--hover); font-weight: 600; }
-  .tab.k-cv { --k: #6aa4f8; } .tab.k-ad { --k: #f0ad4e; } .tab.k-note { --k: #b48cf2; } .tab.k-form { --k: #3fc1a5; }
+  .tab { display: inline-flex; align-items: center; gap: 7px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--mut);
+         padding: 0 10px; margin-bottom: -1px; cursor: pointer; font: inherit; font-size: 13.5px; }
+  .tab svg { width: 15px; height: 15px; } .tab:hover { color: var(--fg); }
+  .tab.on { color: var(--fg); border-bottom-color: var(--fg); font-weight: 600; }
   .bar { flex-wrap: wrap; }
   .find { display: flex; align-items: center; gap: 6px; background: #101012; border: 1px solid var(--line);
           border-radius: 6px; padding: 0 8px; }
@@ -752,7 +762,7 @@ PAGE = r"""<!doctype html>
   #banner { display: none; align-items: center; gap: 10px; padding: 7px 14px; background: #2d2614;
             border-bottom: 1px solid #4a3d1a; color: #f3d98b; }
   #banner.show { display: flex; }
-  #view { overflow: auto; padding: 18px 0 40px; }
+  #view { overflow: auto; padding: 18px 0 96px; }  /* room to scroll the end of the CV above the dock */
   .sheet { position: relative; margin: 0 auto 18px; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,.55); }
   .sheet canvas { display: block; }
   .textLayer ::selection { background: rgba(60,130,255,.38); }
@@ -813,7 +823,7 @@ PAGE = r"""<!doctype html>
   dialog ul.what { margin: 0; padding-left: 18px; line-height: 1.55; } dialog ul.what li { margin: 4px 0; }
   dialog .aiwhen { margin: 12px 0 0; color: var(--mut); font-size: 12.5px; } dialog .aiwhen.on { color: var(--fg); }
   dialog .warnline { margin: 8px 0 0; color: var(--warn); font-size: 12.5px; }
-  .chip.gen { border-color: var(--acc); color: var(--acc); }
+  .chip.gen { border-color: var(--line); color: var(--mut); }
   .ai { display: flex; align-items: center; gap: 7px; background: none; border: 1px solid var(--line); color: var(--mut);
     border-radius: 99px; padding: 4px 11px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
   .ai .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mut); }
@@ -876,18 +886,26 @@ __ICONS__
 <main id="main">
   <div id="bar">
     <span id="tabs" class="cvonly"></span>
+    <span class="sp"></span>
     <div class="state"><span class="dot" id="dot"></span><span id="msg" data-t="loading"></span>
       <span class="chip gen cvonly" id="genchip" data-t="genQueued" hidden></span>
       <span class="chip gen cvonly" id="prepchip" data-t="prepQueued" hidden></span></div>
     <div id="pathbar"></div>
-    <span class="sp"></span>
-    <button class="btn cvonly" id="draftbtn" data-tt="draftTip"><svg class="i"><use href="#i-data"/></svg><span class="lbl" data-t="draft"></span></button>
-    <button class="btn cvonly" id="revbtn" data-tt="revisionsTip"><svg class="i"><use href="#i-clock"/></svg><span class="lbl" data-t="revisions"></span></button>
-    <button class="btn cvonly" id="savebtn" data-tt="saveTip"><svg class="i"><use href="#i-save"/></svg><span class="lbl" data-t="saveRev"></span><span class="pip" id="dirty" data-tt="unsaved" hidden></span></button>
-    <button class="btn second cvonly" id="genbtn" data-tt="genTip" hidden><svg class="i"><use href="#i-spark"/></svg><span class="lbl" data-t="generate"></span></button>
-    <button class="btn second cvonly" id="prepbtn" data-tt="prepTip" hidden><svg class="i"><use href="#i-chat"/></svg><span class="lbl" data-t="prep"></span></button>
-    <button class="btn" id="cmbtn" data-tt="commentsTip"><svg class="i"><use href="#i-chat"/></svg><span class="badge" id="cmcount2" hidden></span></button>
-    <div class="menu cvonly"><button class="btn primary" id="pdfbtn" data-tt="pdfTip"><svg class="i"><use href="#i-file"/></svg><span data-t="exportPdf"></span><span class="caret">▾</span></button>
+    <button class="btn ghost" id="cmbtn" data-tt="commentsTip"><svg class="i"><use href="#i-chat"/></svg><span class="badge" id="cmcount2" hidden></span></button>
+  </div>
+  <div id="banner"><svg class="i"><use href="#i-clock"/></svg><span id="bannertext"></span><span class="sp"></span>
+    <button class="btn" id="backbtn"><svg class="i"><use href="#i-back"/></svg><span data-t="backToCurrent"></span></button></div>
+  <div id="view"></div>
+  <!-- The dock: every action on the CV, floating over the bottom of the document. -->
+  <div id="dock" class="cvonly" role="toolbar">
+    <button class="btn icon" id="draftbtn" data-tt="draftTip"><svg class="i"><use href="#i-data"/></svg><span class="lbl" data-t="draft"></span></button>
+    <button class="btn icon" id="revbtn" data-tt="revisionsTip"><svg class="i"><use href="#i-clock"/></svg><span class="lbl" data-t="revisions"></span></button>
+    <button class="btn" id="savebtn" data-tt="saveTip"><svg class="i"><use href="#i-save"/></svg><span class="lbl" data-t="saveRev"></span><span class="pip" id="dirty" data-tt="unsaved" hidden></span></button>
+    <span class="dgroup" id="aigroup"><span class="dsep"></span>
+      <button class="btn" id="genbtn" data-tt="genTip" hidden><svg class="i"><use href="#i-spark"/></svg><span class="lbl" data-t="generate"></span></button>
+      <button class="btn" id="prepbtn" data-tt="prepTip" hidden><svg class="i"><use href="#i-chat"/></svg><span class="lbl" data-t="prep"></span></button></span>
+    <span class="dsep"></span>
+    <div class="menu"><button class="btn primary" id="pdfbtn" data-tt="pdfTip"><svg class="i"><use href="#i-file"/></svg><span class="lbl" data-t="exportPdf"></span><span class="caret">▾</span></button>
       <div class="menupop" id="pdfmenu" hidden>
         <a class="mi" id="pdflink" href="#" target="_blank" draggable="true" data-tt="dragTip"><svg class="i"><use href="#i-open"/></svg><span data-t="openTab"></span></a>
         <a class="mi" id="pdfdl" href="#" download><svg class="i"><use href="#i-save"/></svg><span data-t="download"></span></a>
@@ -896,9 +914,6 @@ __ICONS__
       </div></div>
     <div class="pop" id="pop" hidden></div>
   </div>
-  <div id="banner"><svg class="i"><use href="#i-clock"/></svg><span id="bannertext"></span><span class="sp"></span>
-    <button class="btn" id="backbtn"><svg class="i"><use href="#i-back"/></svg><span data-t="backToCurrent"></span></button></div>
-  <div id="view"></div>
 </main>
 <aside id="rail">
   <div id="tplsec" class="cvonly">
