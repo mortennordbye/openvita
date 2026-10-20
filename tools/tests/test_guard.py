@@ -45,12 +45,12 @@ class Guard(LocalDir, unittest.TestCase):
 
     def test_paths(self):
         for rel in ("local/kari/base/generic/cv.html", "build/kari/x.pdf", "templates/acme/cv.css",
-                    "examples/templates/acme/cv.css", "docs/cv.html", "docs/job-ad.md", "some/openself.json", "x/form.docx"):
+                    "examples/templates/acme/cv.css", "docs/cv.html", "docs/job-ad.md", "docs/prep.md", "some/openself.json", "x/form.docx"):
             self.write(rel, "x\n")
             self.add(rel)
         problems = "\n".join(self.staged())
         for rel in ("local/kari", "build/kari", "templates/acme", "examples/templates/acme", "docs/cv.html",
-                    "docs/job-ad.md", "some/openself.json", "x/form.docx"):
+                    "docs/job-ad.md", "docs/prep.md", "some/openself.json", "x/form.docx"):
             self.assertIn(rel, problems)
 
     def test_allow_file(self):

@@ -78,7 +78,9 @@ make release C=kari APP=2026-11-acme-platform   # keep the PDF you sent, numbere
 ```
 
 Paste the job ad when you create the application, then "Tailor CV" asks the assistant to write it
-from your profile. The top of the [Makefile](Makefile) lists every command.
+from your profile. Before the interview, "Prepare" asks for talking points, stories, likely
+questions and gaps for that job, each citing the profile entries it rests on (`prep.md`). The top
+of the [Makefile](Makefile) lists every command.
 
 ## Working with an assistant
 

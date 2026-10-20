@@ -16,7 +16,7 @@ local/kari/
   feedback.json         your comments and requests from the workbench, kept as history
   photo.jpg             optional
   base/generic/cv.html  your general CV, the starting point for every application
-  applications/         one folder per application: cv.html, job-ad.md, notes.md, forms/
+  applications/         one folder per application: cv.html, job-ad.md, notes.md, prep.md, forms/
   releases/             numbered PDFs of versions you sent (make release)
   profile/              your OpenSelf profile, unless openvita.json points elsewhere; its own git history
   private/intake/       old CVs, LinkedIn PDF and other source material, never copied into a CV as is

@@ -10,6 +10,7 @@ import tempfile
 import time
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -226,6 +227,46 @@ class ServeProfile(unittest.TestCase):
         self.assertIn('<html lang="nb">', html)
         log = subprocess.run(["git", "-C", os.path.join(self.tmp, "ola"), "log", "--format=%s"], capture_output=True, text=True).stdout
         self.assertIn("Before drafting base/hand from the profile in template classic", log)
+
+    def test_9_meeting_prep(self):
+        code, j = self.post("/new-case", {"name": "2026-11-acme-platform", "jobad": "Acme looks for a platform engineer with Kubernetes."})
+        self.assertEqual((code, j["ok"]), (200, True), j)
+        t = j["target"]
+        self.assertEqual(self.post("/prep", {"t": t, "include": []})[0], 400)
+        self.assertEqual(self.post("/prep", {"t": t, "include": "points"})[0], 400)
+        self.assertEqual(self.post("/prep", {"t": "ola/base/generic", "include": ["points"]})[0], 400)
+        code, j = self.post("/prep", {"t": t, "meeting": "First interview, 45 min", "include": ["ask", "points", "nope"]})
+        self.assertEqual((code, j["ok"]), (200, True), j)
+        code, j = self.post("/prep", {"t": t, "include": ["points"]})
+        self.assertIn("Allerede", j["message"])
+        with open(os.path.join(self.tmp, "ola", "feedback.json"), encoding="utf-8") as f:
+            items = json.load(f)
+        preps = [i for i in items if i["kind"] == "prep"]
+        self.assertEqual(len(preps), 1)
+        self.assertEqual((preps[0]["include"], preps[0]["comment"], preps[0]["source"]), (["points", "ask"], "First interview, 45 min", "prep.md"))
+        self.assertTrue(preps[0]["file"].endswith("applications/2026-11-acme-platform/prep.md"))
+        watch = subprocess.Popen([sys.executable, os.path.join(TOOLS, "watch-feedback.py"), "ola"], env=self.env,
+                                 stdout=subprocess.PIPE, text=True)
+        try:
+            lines = [watch.stdout.readline() for i in items if i["status"] == "open"]
+        finally:
+            watch.kill()
+            watch.wait()
+            watch.stdout.close()
+        self.assertIn("MEETING PREP", "".join(lines))
+        self.assertIn("include=points,ask: First interview, 45 min", "".join(lines))
+        self.assertNotIn("prep.md", self.get("/state?" + urllib.parse.urlencode({"t": t}))["files"])
+        with open(os.path.join(self.tmp, t.split("/", 1)[0], t.split("/", 1)[1], "prep.md"), "w", encoding="utf-8") as f:
+            f.write("# Prep\n\n- Talking point\n")
+        s = self.get("/state?" + urllib.parse.urlencode({"t": t}))
+        self.assertIn("prep.md", s["files"])
+        self.assertIn("prep.md", s["mdver"])
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/file?" + urllib.parse.urlencode({"t": t, "name": "prep.md"})) as r:
+            self.assertIn("Talking point", r.read().decode())
+        code, j = self.post("/comment", {"t": t, "source": "prep.md", "quote": "Talking point", "comment": "shorter"})
+        self.assertEqual(code, 200, j)
+        with open(os.path.join(self.tmp, "ola", "feedback.json"), encoding="utf-8") as f:
+            self.assertTrue(json.load(f)[-1]["file"].endswith("/prep.md"))
 
 
 if __name__ == "__main__":
