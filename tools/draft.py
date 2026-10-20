@@ -7,7 +7,8 @@ Writes local/<c>/base/<variant>/cv.html (or applications/<app>/cv.html). The dra
 point: an assistant or the person rewrites it for the reader (guide/writing.md). It refuses to
 overwrite a cv.html that was edited after the last draft, unless --force.
 
-What goes in, following the export rules of the OpenSelf spec (sections 5 and 8):
+What goes in is OpenSelf's public view (`openself export`, spec section 8), the same data a
+portfolio site or any other export reads:
 - customers only as the profile allows (`customer_public`, the alias, internal and portfolio work);
   assignments with an `nda` customer are left out,
 - the private `reference` section, the owner's own words and the flags are never copied,
@@ -27,7 +28,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import profiles  # noqa: E402
 import templates  # noqa: E402
-from openself import index, model, schema  # noqa: E402
+from openself import export, model  # noqa: E402
 
 TOP_SKILLS = 8
 STAMP = re.compile(r"<!-- openvita draft ([0-9a-f]{12}) -->\n")
@@ -58,11 +59,6 @@ def period(e, w):
     if t == "ongoing":
         return f"{when(s, w)} – {w['now']}"
     return f"{when(s, w)} – {when(t, w)}" if t and t != s else when(s, w)
-
-
-def omitted(e):
-    """The standing omit wishes on an entry (not resolved)."""
-    return [f.text for f in model.flags(e.body)[0] if f.type == "omit" and not f.resolved]
 
 
 def text_html(md, indent="      "):
@@ -98,30 +94,16 @@ def inline(s):
     return re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?!\w)", r"<i>\1</i>", s)
 
 
-def section_text(e, ids):
-    """[(section id, text)] for the wanted sections of an entry, in profile order."""
-    return [(s.id, s.text) for s in model.sections(e.body, e.type) if s.id in ids and s.text.strip()]
-
-
-def entry_body(e, ids):
-    wishes = omitted(e)
+def entry_body(item, wishes):
+    """The sections of a public-view item as HTML; an omit wish is left as a comment instead."""
     if wishes:
         return "\n".join(f"      <!-- omit: {esc(w).replace('--', '- -')} -->" for w in wishes)
-    parts = []
-    for sid, text in section_text(e, ids):
-        parts.append(f'      <div data-section="{sid}">\n{text_html(text, "        ")}\n      </div>')
-    return "\n".join(parts)
-
-
-def customer(e, labels, w, employers):
-    if e.get("kind") == "internal":
-        return f"{employers.get(e.get('employment'), '')} ({w['internal']})".strip()
-    label = index.customer_label(e, labels)
-    return "" if label == "?" else label
+    return "\n".join(f'      <div data-section="{s["id"]}">\n{text_html(s["text"], "        ")}\n      </div>'
+                     for s in item["sections"])
 
 
 def entry(e, title, org, date, body, tags):
-    out = [f'  <div class="entry" data-entry="{esc(e.id)}">',
+    out = [f'  <div class="entry" data-entry="{esc(e["id"])}">',
            f'    <p class="date">{esc(date)}</p>',
            f'    <h3>{esc(title)}</h3>']
     if org:
@@ -135,15 +117,16 @@ def entry(e, title, org, date, body, tags):
 
 
 def build(c, template, lang, profile_dir=""):
-    """The CV of person c, or of the profile in profile_dir (without a photo) when given."""
+    """The CV of person c, or of the profile in profile_dir (without a photo) when given. It reads
+    OpenSelf's public view, so it shows what every other export shows."""
     if profile_dir:
         p = model.load_profile(profile_dir)
     else:
         p = model.load_profile(profiles.profile_dir(c)) if profiles.exists(c) else None
+    v = export.public_view(p) if p else {}
     w = WORDS[lang]
-    labels = schema.labels(p.lang if p else lang)
-    person = p.entries.get("person") if p else None
-    meta = person.meta if person else {}
+    meta = v.get("person") or {}
+    wishes = lambda item: export.omitted(p.entries[item["id"]]) if item.get("omit") else []
     name = meta.get("name") or c.replace("-", " ").title()
     contact = templates.brand_contact(template, meta)
     out = ["<!doctype html>", f'<html lang="{lang}">', "<head>", '<meta charset="utf-8">',
@@ -175,28 +158,27 @@ def build(c, template, lang, profile_dir=""):
     out += ["</header>", ""]
 
     # profile text
-    if person:
-        body = entry_body(person, {"about"})
+    if meta:
+        body = entry_body(meta, wishes(meta))
         if body:
             out += ['<section class="profile" data-entry="person">', f'  <h2 class="section">{w["profile"]}</h2>', body, "</section>", ""]
 
     # the side column: skills, certifications, languages, links
     side = []
     if p:
-        ranked = sorted(index.tech_evidence(p).items(), key=lambda kv: (-len(kv[1][0]), kv[0]))[:TOP_SKILLS]
+        ranked = v["tech"][:TOP_SKILLS]
         if ranked:
-            side += [f'  <h2>{w["skills"]}</h2>', '  <ul class="keys">'] + [f"    <li>{esc(t)}</li>" for t, _ in ranked] + ["  </ul>"]
-        certs = p.entries.get("certifications")
-        rows = [r for r in model.parse_table(certs.body) if r and r[0].strip()] if certs and not omitted(certs) else []
+            side += [f'  <h2>{w["skills"]}</h2>', '  <ul class="keys">'] + [f"    <li>{esc(t['name'])}</li>" for t in ranked] + ["  </ul>"]
+        rows = v["certifications"]
         if rows:
             side += [f'  <h2>{w["certs"]}</h2>', '  <ul class="certs" data-entry="certifications">']
-            side += [f'    <li>{esc(r[0])}{" (" + esc(r[2][:4]) + ")" if len(r) > 2 and r[2] else ""}</li>' for r in rows]
+            side += [f'    <li>{esc(r["name"])}{" (" + esc(r["date"][:4]) + ")" if r["date"] else ""}</li>' for r in rows]
             side.append("  </ul>")
     if meta.get("languages"):
-        side += [f'  <h2>{w["languages"]}</h2>', '  <ul class="languages">'] + [f"    <li>{esc(x)}</li>" for x in person.list("languages")] + ["  </ul>"]
+        side += [f'  <h2>{w["languages"]}</h2>', '  <ul class="languages">'] + [f"    <li>{esc(x)}</li>" for x in meta["languages"]] + ["  </ul>"]
     if side:
         out += ['<aside class="sidebar main">'] + side + ["</aside>", ""]
-    links = [(k, meta.get(k)) for k in ("linkedin", "github") if meta.get(k)] + [("link", x) for x in (person.list("links") if person else [])]
+    links = [(k, meta.get(k)) for k in ("linkedin", "github") if meta.get(k)] + [("link", x) for x in meta.get("links", [])]
     if links:
         out.append('<aside class="sidebar social">')
         out.append(f'  <h2>{w["links"]}</h2>')
@@ -206,34 +188,31 @@ def build(c, template, lang, profile_dir=""):
         out += ["</aside>", ""]
 
     # education
-    edu = p.entries.get("education") if p else None
-    rows = [r for r in model.parse_table(edu.body) if r and r[0].strip()] if edu and not omitted(edu) else []
+    rows = v.get("education") or []
     if rows:
         out += ['<section class="edu" data-entry="education">', f'  <h2 class="section">{w["education"]}</h2>']
         for r in rows:
-            r = (r + ["", "", "", ""])[:4]
-            dates = " – ".join(x for x in (r[2], r[3]) if x)
-            out += ['  <div class="entry">', f'    <p class="date">{esc(dates)}</p>', f"    <h3>{esc(r[0])}</h3>"]
-            if r[1]:
-                out.append(f'    <p class="org">{esc(r[1])}</p>')
+            dates = " – ".join(x for x in (r["from"], r["to"]) if x)
+            out += ['  <div class="entry">', f'    <p class="date">{esc(dates)}</p>', f"    <h3>{esc(r['degree'])}</h3>"]
+            if r["school"]:
+                out.append(f'    <p class="org">{esc(r["school"])}</p>')
             out.append("  </div>")
         out += ["</section>", ""]
 
     if p:
-        jobs = index.newest_first(p.of_type("employment"))
-        employers = {e.id: e.get("employer") or "" for e in jobs}
+        jobs = v["employments"]
+        employers = {e["id"]: e["employer"] for e in jobs}
         if jobs:
             out += [f'<h2 class="page-title">{w["experience"]}</h2>', '<section class="timeline experience">']
             for e in jobs:
-                out.append(entry(e, e.get("title") or "", e.get("employer") or "", period(e, w),
-                                 entry_body(e, {"summary"}), e.list("tech")))
+                out.append(entry(e, e["title"], e["employer"], period(e, w), entry_body(e, wishes(e)), e["tech"]))
             out += ["</section>", ""]
-        work = [e for e in index.newest_first(p.of_type("assignment")) if e.get("customer_public") != "nda"]
+        work = v["assignments"]
         if work:
             out += [f'<h2 class="page-title">{w["projects"]}</h2>', '<section class="timeline projects">']
             for e in work:
-                out.append(entry(e, e.get("role") or "", customer(e, labels, w, employers), period(e, w),
-                                 entry_body(e, {"summary", "challenge", "contribution", "outcome"}), e.list("tech")))
+                org = f"{employers.get(e['employment'], '')} ({w['internal']})".strip() if e["kind"] == "internal" else e["customer"]
+                out.append(entry(e, e["role"], org, period(e, w), entry_body(e, wishes(e)), e["tech"]))
             out += ["</section>", ""]
 
     out += ["</body>", "</html>", ""]
