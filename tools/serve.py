@@ -717,6 +717,22 @@ PAGE = r"""<!doctype html>
   #status #cmbtn { padding: 3px 8px; }
   @container (max-width: 760px) { #status #pathbar { display: none; } }
   @container (max-width: 720px) { #bar .lbl, #bar .kbtn kbd { display: none; } }
+  /* Connect an assistant: the steps, each command with a copy button, and the live state. */
+  #aidlg .lead { margin: 0 0 12px; color: var(--mut); }
+  #aidlg ol.steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 14px; }
+  #aidlg ol.steps small, #aidlg details p { display: block; color: var(--mut); margin-top: 4px; font-size: 12.5px; }
+  .cmdrow { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .cmdrow code { flex: 1; min-width: 0; background: #101012; border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
+                 font: 12px ui-monospace, Menlo, monospace; overflow-x: auto; white-space: nowrap; }
+  #aidlg details { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+  #aidlg summary { cursor: pointer; color: var(--mut); } #aidlg details p { margin: 8px 0 0; }
+  .aiwait { margin-right: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--mut); }
+  .aiwait .okdot { width: 8px; height: 8px; border-radius: 50%; background: var(--mut); flex: none; }
+  .aiwait.on { color: var(--fg); } .aiwait.on .okdot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  @media (prefers-reduced-motion: no-preference) { .aiwait:not(.on) .okdot { animation: aipulse 1.4s ease-in-out infinite; } }
+  @keyframes aipulse { 50% { opacity: .3; } }
+  .mi.connect { color: var(--warn); }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--acc); font: inherit; cursor: pointer; text-decoration: underline; }
   /* ⌘K: every action and place, by name. */
   #palette { padding: 0; width: min(560px, 92vw); margin-top: 14vh; }
   .palq { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
@@ -904,6 +920,7 @@ __ICONS__
     <span class="bsep cvonly"></span>
     <div class="menu cvonly" id="aimenu"><button class="btn" id="aibtn" data-tt="aiMenuTip"><svg class="i"><use href="#i-spark"/></svg><span class="lbl" data-t="assistantMenu"></span><span class="caret">▾</span></button>
       <div class="menupop" id="aipop" hidden>
+        <button class="mi connect" id="aiconnect" hidden><svg class="i"><use href="#i-spark"/></svg><span data-t="aiConnect"></span><small data-t="aiConnectHint"></small></button>
         <button class="mi" id="genbtn" hidden><svg class="i"><use href="#i-spark"/></svg><span data-t="generate"></span><small data-t="genHint"></small></button>
         <button class="mi" id="prepbtn" hidden><svg class="i"><use href="#i-chat"/></svg><span data-t="prepTitleShort"></span><small data-t="prepHint"></small></button>
       </div></div>
@@ -949,6 +966,17 @@ __ICONS__
   <label for="ncad" data-t="adLabel"></label><textarea id="ncad" data-tp="adPh"></textarea>
   <div class="row"><span class="msg" id="ncmsg"></span><button class="btn" id="nccancel" data-t="cancel"></button>
   <button class="btn on" id="nccreate"><svg class="i"><use href="#i-plus"/></svg><span data-t="create"></span></button></div></dialog>
+<dialog id="aidlg"><h2 data-t="aiConnectTitle"></h2>
+  <p class="lead" data-t="aiConnectLead"></p>
+  <ol class="steps">
+    <li><b data-t="aiStep1"></b><div class="cmdrow"><code id="aicd"></code><button class="btn" data-copy="aicd" data-t="copy"></button></div></li>
+    <li><b data-t="aiStep2"></b><div class="cmdrow"><code id="aicmd"></code><button class="btn" data-copy="aicmd" data-t="copy"></button></div>
+      <small data-t="aiStep2Hint"></small></li>
+    <li><b data-t="aiStep3"></b><small data-t="aiStep3Hint"></small></li>
+  </ol>
+  <details class="other"><summary data-t="aiOther"></summary><p data-t="aiOtherText"></p>
+    <div class="cmdrow"><code id="aiprompt"></code><button class="btn" data-copy="aiprompt" data-t="copy"></button></div></details>
+  <div class="row"><span class="aiwait" id="aiwait"></span><button class="btn" id="aiclose" data-t="close"></button></div></dialog>
 <dialog id="palette" aria-label="Commands"><div class="palq"><svg class="i"><use href="#i-search"/></svg><input id="palq" autocomplete="off" data-tp="palettePh"></div>
   <div id="pallist" role="listbox"></div></dialog>
 <dialog id="gendlg"><h2 data-t="genTitle"></h2>
@@ -993,6 +1021,14 @@ const T = {
     prepTitle: 'Prepare for the meeting', prepMeeting: 'The meeting: what kind, who you meet, how long, anything else',
     prepPh: 'First interview with the hiring manager and a tech lead, 45 minutes, on video. They care most about Kubernetes.',
     prepInclude: 'Include', prepPoints: 'Talking points', prepStories: 'Stories (STAR)', prepQuestions: 'Likely questions and answers',
+    aiConnectTitle: 'Connect an AI assistant',
+    aiConnectLead: 'The workbench never calls an AI itself. An assistant on your machine picks up your comments and requests and edits the files. Connect one like this:',
+    aiStep1: 'Open a terminal in the OpenVita folder', aiStep2: 'Start Claude Code, already told to watch your workbench',
+    aiStep2Hint: 'Keep that terminal open while you work. Answer its questions there when it asks.',
+    aiStep3: 'Done when the chip at the top turns green', aiStep3Hint: 'If it turns grey later, say "watch the workbench" to the assistant.',
+    aiOther: 'Using another assistant?', aiOtherText: 'Any assistant that can run commands on your machine works. Start it in the OpenVita folder and give it this:',
+    aiWaiting: 'Waiting for an assistant to connect ...', aiNowOn: 'Connected. Requests reach the assistant now.', copy: 'Copy', close: 'Close',
+    aiConnect: 'Connect AI ...', aiConnectHint: 'No assistant is listening yet',
     paletteTip: 'Find an action or a place (⌘K)', palettePh: 'What do you want to do?', assistantMenu: 'Assistant',
     aiMenuTip: 'Ask the assistant to do something with this application', genHint: 'Rewrites the CV from the job ad',
     prepTitleShort: 'Prepare for the meeting', prepHint: 'Talking points, stories and questions', palNone: 'Nothing matches',
@@ -1020,7 +1056,7 @@ const T = {
     redraftIn: 'Switch to {tpl}? It is built differently, so the CV is drafted again from the profile. The text you have now is kept as a revision.', sentToAssistant: 'Sent to the assistant', notStored: 'Could not store the comment',
     noComments: 'No comments yet. Select text in the CV, the job ad or the profile and write what should change.',
     aiOn: 'AI connected', aiOff: 'No AI connected', aiOnTip: 'An assistant has been listening since {0}. New comments and requests reach it within a second.',
-    aiOffTip: 'Comments and requests wait until an assistant listens. Click to copy what to run in its session: {0}', aiCopied: 'Copied: {0}',
+    aiOffTip: 'Comments and requests wait until an assistant listens. Click to see how to connect one.', aiCopied: 'Copied: {0}',
     seenByAi: 'Seen by the assistant', waitingAi: 'Waiting for an assistant', noAiYet: 'No assistant is connected yet, it picks this up when one is.',
     genItem: 'Tailor the CV to the job ad', interview: 'Interview about {0}', theProfile: 'the profile', page: ' p.', assistant: 'Assistant: ',
     markDone: 'Mark as done', reopen: 'Open again', archive: 'Hide from the list (kept for later tuning)', shownFinder: 'Shown in Finder',
@@ -1047,6 +1083,14 @@ const T = {
     prepTitle: 'Forbered møtet', prepMeeting: 'Møtet: hva slags, hvem du møter, hvor lenge, ellers noe',
     prepPh: 'Førstegangsintervju med leder og en tech lead, 45 minutter på video. De er mest opptatt av Kubernetes.',
     prepInclude: 'Ta med', prepPoints: 'Budskap', prepStories: 'Historier (STAR)', prepQuestions: 'Sannsynlige spørsmål og svar',
+    aiConnectTitle: 'Koble til en AI-assistent',
+    aiConnectLead: 'Arbeidsbenken kaller aldri en AI selv. En assistent på maskinen din tar imot kommentarene og bestillingene dine og endrer filene. Slik kobler du til en:',
+    aiStep1: 'Åpne en terminal i OpenVita-mappen', aiStep2: 'Start Claude Code, som allerede er bedt om å følge med på arbeidsbenken',
+    aiStep2Hint: 'La terminalen stå åpen mens du jobber. Svar der når assistenten spør om noe.',
+    aiStep3: 'Ferdig når brikken øverst blir grønn', aiStep3Hint: 'Blir den grå igjen senere, si «følg med på arbeidsbenken» til assistenten.',
+    aiOther: 'Bruker du en annen assistent?', aiOtherText: 'Alle assistenter som kan kjøre kommandoer på maskinen din, fungerer. Start den i OpenVita-mappen og gi den dette:',
+    aiWaiting: 'Venter på at en assistent kobler til ...', aiNowOn: 'Tilkoblet. Bestillinger når assistenten nå.', copy: 'Kopier', close: 'Lukk',
+    aiConnect: 'Koble til AI ...', aiConnectHint: 'Ingen assistent lytter ennå',
     paletteTip: 'Finn en handling eller et sted (⌘K)', palettePh: 'Hva vil du gjøre?', assistantMenu: 'Assistent',
     aiMenuTip: 'Be assistenten gjøre noe med denne søknaden', genHint: 'Skriver om CV-en ut fra annonsen',
     prepTitleShort: 'Forbered møtet', prepHint: 'Budskap, historier og spørsmål', palNone: 'Ingen treff',
@@ -1074,7 +1118,7 @@ const T = {
     redraftIn: 'Bytte til {tpl}? Den er bygd opp annerledes, så CV-en lages på nytt fra profilen. Teksten du har nå lagres som en revisjon.', sentToAssistant: 'Sendt til assistenten', notStored: 'Kunne ikke lagre kommentaren',
     noComments: 'Ingen kommentarer ennå. Marker tekst i CV-en, annonsen eller profilen og skriv hva som skal endres.',
     aiOn: 'AI tilkoblet', aiOff: 'Ingen AI tilkoblet', aiOnTip: 'En assistent har lyttet siden {0}. Nye kommentarer og bestillinger når den innen et sekund.',
-    aiOffTip: 'Kommentarer og bestillinger venter til en assistent lytter. Klikk for å kopiere det den skal kjøre i økten sin: {0}', aiCopied: 'Kopiert: {0}',
+    aiOffTip: 'Kommentarer og bestillinger venter til en assistent lytter. Klikk for å se hvordan du kobler til en.', aiCopied: 'Kopiert: {0}',
     seenByAi: 'Sett av assistenten', waitingAi: 'Venter på en assistent', noAiYet: 'Ingen assistent er tilkoblet ennå, den tar det når den kobler til.',
     genItem: 'Skreddersy CV-en til annonsen', interview: 'Intervju om {0}', theProfile: 'profilen', page: ' s.', assistant: 'Assistenten: ',
     markDone: 'Merk som gjort', reopen: 'Åpne igjen', archive: 'Skjul fra lista (lagres fortsatt for senere tuning)', shownFinder: 'Vist i Finder',
@@ -1389,6 +1433,7 @@ async function createCase() {
 // Tailor CV asks first: what will happen, whether an assistant is listening, and if the ad looks empty.
 async function openGen() {
   $('genai').textContent = tr(ai.connected ? 'genAiOn' : 'genAiOff'); $('genai').classList.toggle('on', ai.connected);
+  if (!ai.connected) { const l = el('button', 'linkbtn', tr('aiConnect')); l.onclick = () => { $('gendlg').close(); openConnect(); }; $('genai').append(' ', l); }
   $('genwarn').hidden = true; $('gendlg').showModal(); $('gensend').focus();
   try {
     const ad = await (await fetch('/file?' + q({ t: target, name: 'job-ad.md' }), { cache: 'no-store' })).text();
@@ -1505,10 +1550,30 @@ function drawAi() {
   const b = $('ai'), cmd = 'make watch-feedback C=' + consC();
   b.hidden = !consC(); b.classList.toggle('on', ai.connected);
   $('ailbl').textContent = tr(ai.connected ? 'aiOn' : 'aiOff');
-  b.title = ai.connected ? tr('aiOnTip', new Date(ai.since).toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' })) : tr('aiOffTip', cmd);
-  b.onclick = async () => { if (ai.connected) { toast(b.title); return; }
-    try { await navigator.clipboard.writeText(cmd); toast(tr('aiCopied', cmd)); } catch (e) { toast(cmd); } };
+  b.title = ai.connected ? tr('aiOnTip', new Date(ai.since).toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' })) : tr('aiOffTip');
+  b.onclick = () => { if (ai.connected) toast(b.title); else openConnect(); };
+  $('aiconnect').hidden = ai.connected;
+  if ($('aidlg').open) drawConnectState();
 }
+// "Connect AI": the steps with the person's own commands, and a live line that turns green when the watcher starts.
+function openConnect() {
+  const c = consC();
+  $('aicd').textContent = 'cd ' + (ai.root || '<openvita>');
+  $('aicmd').textContent = 'make ai C=' + c;
+  $('aiprompt').textContent = `Watch the OpenVita workbench for ${c}: run 'make watch-feedback C=${c}' as a background monitor for this whole session, start it again whenever it stops, and handle each request and comment as AGENTS.md says.`;
+  drawConnectState(); $('aidlg').showModal();
+}
+function drawConnectState() {
+  const w = $('aiwait'); w.replaceChildren(el('span', 'okdot'), el('span', '', tr(ai.connected ? 'aiNowOn' : 'aiWaiting')));
+  w.classList.toggle('on', ai.connected);
+}
+$('aidlg').addEventListener('click', async e => {
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  const text = $(b.dataset.copy).textContent;
+  try { await navigator.clipboard.writeText(text); toast(tr('aiCopied', text.length > 60 ? text.slice(0, 57) + '...' : text)); }
+  catch (err) { getSelection().selectAllChildren($(b.dataset.copy)); }
+});
+$('aiclose').onclick = () => $('aidlg').close();
 const aiNote = () => ai.connected ? '' : ' ' + tr('noAiYet');
 async function loadComments() {
   if (!target) return;
@@ -1649,6 +1714,7 @@ function palCommands() {
     add(tr('palGo'), 'user', tr('profile'), () => setTarget(c.person + '/raw'));
     add(tr('palGo'), 'spark', tr('personal'), () => setTarget(c.person + '/personal'));
   }
+  if (!ai.connected) add(tr('palAi'), 'spark', tr('aiConnect'), openConnect);
   add(tr('palGo'), 'spark', tr('instructions'), () => setTarget('doc/prompt'));
   add(tr('palGo'), 'help', tr('howItWorks'), () => setTarget('doc/how'));
   return out;
@@ -1670,7 +1736,7 @@ function drawPalette() {
 }
 function openPalette() { $('palq').value = ''; palAt = 0; drawPalette(); $('palette').showModal(); $('palq').focus(); }
 function runPalette(n) { const i = palItems[n]; if (!i) return; $('palette').close(); setTimeout(i.run, 0); }
-$('kbtn').onclick = openPalette;
+$('kbtn').onclick = openPalette; $('aiconnect').onclick = openConnect;
 $('palq').addEventListener('input', () => { palAt = 0; drawPalette(); });
 $('palq').addEventListener('keydown', e => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); palAt = (palAt + (e.key === 'ArrowDown' ? 1 : -1) + palItems.length) % Math.max(1, palItems.length); drawPalette(); }
@@ -1822,7 +1888,7 @@ class Handler(BaseHTTPRequestHandler):
         elif u.path == "/comments" and re.fullmatch(r"[\w.-]+", q.get("c", "")):
             self.json(load_feedback(q["c"]))
         elif u.path == "/assistant" and re.fullmatch(r"[\w.-]+", q.get("c", "")) and q["c"] not in profiles.RESERVED:
-            self.json(assistant_state(q["c"]))
+            self.json(dict(assistant_state(q["c"]), root=ROOT))
         elif u.path == "/favicon.svg":
             self.send(200, FAVICON.encode(), "image/svg+xml")
         elif u.path.startswith("/profile") and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):

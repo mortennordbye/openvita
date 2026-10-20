@@ -13,6 +13,7 @@
 #   make new    C=kari APP=2026-10-acme-platform [TEMPLATE=x]   new application from the base CV
 #   make use-template C=kari [APP=x | VARIANT=x] TEMPLATE=x   switch a CV to another template
 #   make templates [C=kari]                   list the templates (built in, OPENVITA_TEMPLATES, the person's own)
+#   make ai C=kari                            start Claude Code here, watching kari's workbench (the AI chip turns green)
 #   make watch-feedback C=kari                print new workbench comments (for an assistant to monitor)
 #   make save    C=kari MSG="what changed"    snapshot the person's folder (its own local git repo)
 #   make release C=kari [APP=x] [TAG=label]   build, save releases/kari-vN-date.pdf and tag it vN
@@ -54,7 +55,7 @@ PORT ?= 8000
 HOME_DIR := $(if $(filter command line,$(origin HOME)),$(HOME))
 TEMPLATE ?=
 
-.PHONY: hooks guard connect-home all cv png serve watch-feedback use-template templates template-check new-template new new-person connect draft save release versions form-add form \
+.PHONY: ai hooks guard connect-home all cv png serve watch-feedback use-template templates template-check new-template new new-person connect draft save release versions form-add form \
         image clean check-c test lint-profile \
         profile-path profile-init profile-index profile-new profile-commit profile-log profile-restore profile-as-of
 
@@ -98,6 +99,13 @@ new-template:
 
 watch-feedback: check-c
 	@python3 tools/watch-feedback.py $(C)
+
+# Connect an assistant: Claude Code in this folder, told to watch the person's workbench (AGENTS.md).
+AI_PROMPT = Watch the OpenVita workbench for $(C): run 'make watch-feedback C=$(C)' as a background monitor for this whole session, start it again whenever it stops, and handle each request and comment as AGENTS.md says.
+ai: check-c
+	@command -v claude >/dev/null 2>&1 || { echo "Claude Code is not installed (https://claude.com/claude-code)."; \
+	  echo "Another assistant works too: ask it to read AGENTS.md and run \`make watch-feedback C=$(C)\` in the background."; exit 1; }
+	@claude "$(AI_PROMPT)"
 
 hooks:
 	@python3 tools/guard.py --install && echo "guard installed: pre-commit and pre-push"

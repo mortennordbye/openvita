@@ -62,6 +62,9 @@ When the person is in the workbench (or says so), run `make watch-feedback C=<na
 background monitor so each new comment and request reaches you as it is made. Items already open
 are printed first. Otherwise handle open items when asked, or when you start work on a CV.
 
+`make ai C=<name>` starts a Claude Code session here with exactly that request; that is how the
+workbench tells the person to connect you.
+
 While it runs, the watcher writes a heartbeat (`local/.assistant/<name>.json`), and the workbench
 shows "AI connected" and marks each open item it has printed as seen by you. Without it the person
 sees "No AI connected" and their requests wait. So start it at the beginning of any session where
