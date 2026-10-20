@@ -661,7 +661,7 @@ PAGE = r"""<!doctype html>
   #side { grid-area: side; border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; }
   #rail { grid-area: rail; border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 10px;
           overflow: hidden; min-height: 0; }
-  #main { grid-area: main; display: grid; grid-template-rows: auto auto 1fr; min-width: 0; min-height: 0; position: relative; container-type: inline-size; }
+  #main { grid-area: main; display: grid; grid-template-rows: auto auto 1fr auto; min-width: 0; min-height: 0; position: relative; }
   .grp { display: flex; align-items: center; gap: 7px; margin: 14px 8px 4px; color: var(--mut); font-size: 11px;
          letter-spacing: .07em; text-transform: uppercase; }
   .grp:first-child { margin-top: 4px; }
@@ -697,27 +697,36 @@ PAGE = r"""<!doctype html>
   .btn:hover { background: var(--hover); }
   .btn.on { background: var(--acc); border-color: var(--acc); color: #0b1220; }
   .sp { flex: 1; }
-  /* The bar over the CV: what you look at (tabs) and its state. The actions live in the dock. */
-  #bar { display: flex; align-items: stretch; gap: 10px; padding: 0 18px; min-height: 44px; border-bottom: 1px solid var(--line);
+  /* The bar over the CV: tabs, then the actions on one row. Narrow: icons only. */
+  #bar { grid-row: 1; display: flex; align-items: stretch; gap: 4px; padding: 0 14px 0 18px; min-height: 46px; border-bottom: 1px solid var(--line);
          position: relative; container-type: inline-size; min-width: 0; }
-  #bar > * { align-self: center; } #bar > #tabs { align-self: stretch; }
-  #bar .btn, #tabs { flex: none; }
-  .state { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--mut); white-space: nowrap; font-size: 12.5px; }
-  @container (max-width: 900px) { #bar #pathbar { display: none; } }
-  /* The dock: one neutral row floating over the bottom of the document. Only the PDF button is filled. */
-  #dock { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 7; display: flex; align-items: center; gap: 2px;
-          background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--line);
-          border-radius: 12px; padding: 5px; box-shadow: 0 14px 34px rgba(0,0,0,.5); max-width: calc(100% - 24px); transition: opacity .15s; }
-  #dock .btn { border-color: transparent; background: none; padding: 6px 10px; }
-  #dock .btn:hover { background: var(--hover); } #dock .btn.icon { padding: 6px 8px; } #dock .btn.icon .lbl { display: none; }
-  #dock .btn.primary { background: var(--fg); border-color: var(--fg); color: #0b1220; font-weight: 600; margin-left: 2px; }
-  #dock .btn.primary:hover { background: #fff; }
-  .dgroup { display: contents; } #aigroup:not(:has(.btn:not([hidden]))) { display: none; }
-  .dsep { width: 1px; align-self: stretch; background: var(--line); margin: 4px 4px; }
-  #dock .menupop { top: auto; bottom: calc(100% + 10px); }
-  #dock .pop { top: auto; bottom: calc(100% + 10px); right: 0; }
-  body:has(#cbox.show) #dock { opacity: 0; pointer-events: none; }  /* out of the way while writing a comment */
-  @container (max-width: 640px) { #dock .btn .lbl { display: none; } #dock { bottom: 12px; } }
+  #bar > * { align-self: center; } #bar > #tabs { align-self: stretch; min-width: 0; overflow: hidden; }
+  #bar .btn { flex: none; }
+  #bar .btn.icon { padding: 6px 8px; }
+  #bar .btn.ghost { background: none; } #bar .btn.ghost:hover { background: var(--hover); }
+  .bsep { width: 1px; height: 22px; background: var(--line); margin: 0 6px; flex: none; }
+  .kbtn kbd { font: 11px ui-monospace, Menlo, monospace; color: var(--mut); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+  #bar .btn.primary { background: var(--fg); border-color: var(--fg); color: #0b1220; font-weight: 600; margin-left: 4px; }
+  #bar .btn.primary:hover { background: #fff; }
+  #aimenu:not(:has(.mi:not([hidden]))) { display: none; }
+  body.doc #bar { display: none; }
+  #banner { grid-row: 2; } #view { grid-row: 3; }
+  #status { grid-row: 4; display: flex; align-items: center; gap: 12px; padding: 4px 14px 4px 18px; border-top: 1px solid var(--line);
+            background: var(--panel); min-width: 0; min-height: 30px; container-type: inline-size; }
+  .state { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--mut); white-space: nowrap; font-size: 12px; }
+  #status #cmbtn { padding: 3px 8px; }
+  @container (max-width: 760px) { #status #pathbar { display: none; } }
+  @container (max-width: 720px) { #bar .lbl, #bar .kbtn kbd { display: none; } }
+  /* ⌘K: every action and place, by name. */
+  #palette { padding: 0; width: min(560px, 92vw); margin-top: 14vh; }
+  .palq { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  #palette .palq input { flex: 1; width: auto; background: none; border: 0; padding: 0; color: var(--fg); font: inherit; font-size: 15px; outline: none; }
+  #pallist { max-height: 52vh; overflow: auto; padding: 6px; }
+  #pallist .ph { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--mut); padding: 8px 10px 4px; }
+  #pallist .pi { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; color: var(--fg); font: inherit;
+                 padding: 7px 10px; border-radius: 6px; cursor: pointer; text-align: left; }
+  #pallist .pi.on { background: var(--hover); } #pallist .pi kbd { margin-left: auto; font: 11px ui-monospace, Menlo, monospace; color: var(--mut); }
+  #pallist .none { color: var(--mut); padding: 14px 10px; }
   .btn.primary { background: var(--acc); border-color: var(--acc); color: #0b1220; font-weight: 600; }
   .btn.primary:hover { background: color-mix(in srgb, var(--acc) 85%, #fff); }
   .btn.ghost { border-color: transparent; color: var(--mut); } .btn.ghost:hover { color: var(--fg); }
@@ -762,7 +771,7 @@ PAGE = r"""<!doctype html>
   #banner { display: none; align-items: center; gap: 10px; padding: 7px 14px; background: #2d2614;
             border-bottom: 1px solid #4a3d1a; color: #f3d98b; }
   #banner.show { display: flex; }
-  #view { overflow: auto; padding: 18px 0 96px; }  /* room to scroll the end of the CV above the dock */
+  #view { overflow: auto; padding: 18px 0 40px; }
   .sheet { position: relative; margin: 0 auto 18px; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,.55); }
   .sheet canvas { display: block; }
   .textLayer ::selection { background: rgba(60,130,255,.38); }
@@ -884,28 +893,21 @@ __ICONS__
 </header>
 <aside id="side"></aside>
 <main id="main">
+  <!-- One quiet row: tabs, then the actions. Only PDF is filled; the assistant's actions share one menu. -->
   <div id="bar">
     <span id="tabs" class="cvonly"></span>
     <span class="sp"></span>
-    <div class="state"><span class="dot" id="dot"></span><span id="msg" data-t="loading"></span>
-      <span class="chip gen cvonly" id="genchip" data-t="genQueued" hidden></span>
-      <span class="chip gen cvonly" id="prepchip" data-t="prepQueued" hidden></span></div>
-    <div id="pathbar"></div>
-    <button class="btn ghost" id="cmbtn" data-tt="commentsTip"><svg class="i"><use href="#i-chat"/></svg><span class="badge" id="cmcount2" hidden></span></button>
-  </div>
-  <div id="banner"><svg class="i"><use href="#i-clock"/></svg><span id="bannertext"></span><span class="sp"></span>
-    <button class="btn" id="backbtn"><svg class="i"><use href="#i-back"/></svg><span data-t="backToCurrent"></span></button></div>
-  <div id="view"></div>
-  <!-- The dock: every action on the CV, floating over the bottom of the document. -->
-  <div id="dock" class="cvonly" role="toolbar">
-    <button class="btn icon" id="draftbtn" data-tt="draftTip"><svg class="i"><use href="#i-data"/></svg><span class="lbl" data-t="draft"></span></button>
-    <button class="btn icon" id="revbtn" data-tt="revisionsTip"><svg class="i"><use href="#i-clock"/></svg><span class="lbl" data-t="revisions"></span></button>
-    <button class="btn" id="savebtn" data-tt="saveTip"><svg class="i"><use href="#i-save"/></svg><span class="lbl" data-t="saveRev"></span><span class="pip" id="dirty" data-tt="unsaved" hidden></span></button>
-    <span class="dgroup" id="aigroup"><span class="dsep"></span>
-      <button class="btn" id="genbtn" data-tt="genTip" hidden><svg class="i"><use href="#i-spark"/></svg><span class="lbl" data-t="generate"></span></button>
-      <button class="btn" id="prepbtn" data-tt="prepTip" hidden><svg class="i"><use href="#i-chat"/></svg><span class="lbl" data-t="prep"></span></button></span>
-    <span class="dsep"></span>
-    <div class="menu"><button class="btn primary" id="pdfbtn" data-tt="pdfTip"><svg class="i"><use href="#i-file"/></svg><span class="lbl" data-t="exportPdf"></span><span class="caret">▾</span></button>
+    <button class="btn ghost kbtn" id="kbtn" data-tt="paletteTip"><svg class="i"><use href="#i-search"/></svg><kbd>⌘K</kbd></button>
+    <button class="btn ghost icon cvonly" id="draftbtn" data-tt="draftTip"><svg class="i"><use href="#i-data"/></svg></button>
+    <button class="btn ghost icon cvonly" id="revbtn" data-tt="revisionsTip"><svg class="i"><use href="#i-clock"/></svg></button>
+    <button class="btn ghost cvonly" id="savebtn" data-tt="saveTip"><svg class="i"><use href="#i-save"/></svg><span class="lbl" data-t="save"></span><span class="pip" id="dirty" data-tt="unsaved" hidden></span></button>
+    <span class="bsep cvonly"></span>
+    <div class="menu cvonly" id="aimenu"><button class="btn" id="aibtn" data-tt="aiMenuTip"><svg class="i"><use href="#i-spark"/></svg><span class="lbl" data-t="assistantMenu"></span><span class="caret">▾</span></button>
+      <div class="menupop" id="aipop" hidden>
+        <button class="mi" id="genbtn" hidden><svg class="i"><use href="#i-spark"/></svg><span data-t="generate"></span><small data-t="genHint"></small></button>
+        <button class="mi" id="prepbtn" hidden><svg class="i"><use href="#i-chat"/></svg><span data-t="prepTitleShort"></span><small data-t="prepHint"></small></button>
+      </div></div>
+    <div class="menu cvonly"><button class="btn primary" id="pdfbtn" data-tt="pdfTip"><svg class="i"><use href="#i-file"/></svg><span class="lbl">PDF</span><span class="caret">▾</span></button>
       <div class="menupop" id="pdfmenu" hidden>
         <a class="mi" id="pdflink" href="#" target="_blank" draggable="true" data-tt="dragTip"><svg class="i"><use href="#i-open"/></svg><span data-t="openTab"></span></a>
         <a class="mi" id="pdfdl" href="#" download><svg class="i"><use href="#i-save"/></svg><span data-t="download"></span></a>
@@ -913,6 +915,18 @@ __ICONS__
         <button class="mi mac" id="finderbtn"><svg class="i"><use href="#i-folder"/></svg><span data-t="finder"></span></button>
       </div></div>
     <div class="pop" id="pop" hidden></div>
+  </div>
+  <div id="banner"><svg class="i"><use href="#i-clock"/></svg><span id="bannertext"></span><span class="sp"></span>
+    <button class="btn" id="backbtn"><svg class="i"><use href="#i-back"/></svg><span data-t="backToCurrent"></span></button></div>
+  <div id="view"></div>
+  <!-- Status line under the document: state, queued requests, the files behind the view. -->
+  <div id="status">
+    <div class="state"><span class="dot" id="dot"></span><span id="msg" data-t="loading"></span>
+      <span class="chip gen cvonly" id="genchip" data-t="genQueued" hidden></span>
+      <span class="chip gen cvonly" id="prepchip" data-t="prepQueued" hidden></span></div>
+    <div id="pathbar"></div>
+    <span class="sp"></span>
+    <button class="btn ghost" id="cmbtn" data-tt="commentsTip"><svg class="i"><use href="#i-chat"/></svg><span class="badge" id="cmcount2" hidden></span></button>
   </div>
 </main>
 <aside id="rail">
@@ -935,6 +949,8 @@ __ICONS__
   <label for="ncad" data-t="adLabel"></label><textarea id="ncad" data-tp="adPh"></textarea>
   <div class="row"><span class="msg" id="ncmsg"></span><button class="btn" id="nccancel" data-t="cancel"></button>
   <button class="btn on" id="nccreate"><svg class="i"><use href="#i-plus"/></svg><span data-t="create"></span></button></div></dialog>
+<dialog id="palette" aria-label="Commands"><div class="palq"><svg class="i"><use href="#i-search"/></svg><input id="palq" autocomplete="off" data-tp="palettePh"></div>
+  <div id="pallist" role="listbox"></div></dialog>
 <dialog id="gendlg"><h2 data-t="genTitle"></h2>
   <ul class="what"><li data-t="genWhat1"></li><li data-t="genWhat2"></li><li data-t="genWhat3"></li></ul>
   <p class="aiwhen" id="genai"></p><p class="warnline" id="genwarn" hidden data-t="genShortAd"></p>
@@ -977,6 +993,10 @@ const T = {
     prepTitle: 'Prepare for the meeting', prepMeeting: 'The meeting: what kind, who you meet, how long, anything else',
     prepPh: 'First interview with the hiring manager and a tech lead, 45 minutes, on video. They care most about Kubernetes.',
     prepInclude: 'Include', prepPoints: 'Talking points', prepStories: 'Stories (STAR)', prepQuestions: 'Likely questions and answers',
+    paletteTip: 'Find an action or a place (⌘K)', palettePh: 'What do you want to do?', assistantMenu: 'Assistant',
+    aiMenuTip: 'Ask the assistant to do something with this application', genHint: 'Rewrites the CV from the job ad',
+    prepTitleShort: 'Prepare for the meeting', prepHint: 'Talking points, stories and questions', palNone: 'Nothing matches',
+    palDoc: 'Document', palAi: 'Assistant', palPdf: 'PDF', palTabs: 'Tabs', palGo: 'Go to', newApp2: 'New application',
     genTitle: 'Tailor the CV to this job?',
     genWhat1: 'The assistant rewrites the CV for this application from the job ad, your profile and your instructions.',
     genWhat2: 'The version you have now is saved as a revision first, so you can always go back.',
@@ -1027,6 +1047,10 @@ const T = {
     prepTitle: 'Forbered møtet', prepMeeting: 'Møtet: hva slags, hvem du møter, hvor lenge, ellers noe',
     prepPh: 'Førstegangsintervju med leder og en tech lead, 45 minutter på video. De er mest opptatt av Kubernetes.',
     prepInclude: 'Ta med', prepPoints: 'Budskap', prepStories: 'Historier (STAR)', prepQuestions: 'Sannsynlige spørsmål og svar',
+    paletteTip: 'Finn en handling eller et sted (⌘K)', palettePh: 'Hva vil du gjøre?', assistantMenu: 'Assistent',
+    aiMenuTip: 'Be assistenten gjøre noe med denne søknaden', genHint: 'Skriver om CV-en ut fra annonsen',
+    prepTitleShort: 'Forbered møtet', prepHint: 'Budskap, historier og spørsmål', palNone: 'Ingen treff',
+    palDoc: 'Dokument', palAi: 'Assistent', palPdf: 'PDF', palTabs: 'Faner', palGo: 'Gå til', newApp2: 'Ny søknad',
     genTitle: 'Skreddersy CV-en til denne stillingen?',
     genWhat1: 'Assistenten skriver om CV-en for denne søknaden ut fra annonsen, profilen og instruksjonene dine.',
     genWhat2: 'Versjonen du har nå lagres som en revisjon først, så du kan alltid gå tilbake.',
@@ -1592,9 +1616,68 @@ $('cmbtn').onclick = () => { document.body.classList.toggle('rail-open'); loadCo
 $('who').onclick = e => { e.stopPropagation(); $('people').hidden = !$('people').hidden; };
 setInterval(loadComments, 5000);
 $('q').addEventListener('input', () => highlight(true));
-$('pdfbtn').onclick = e => { e.stopPropagation(); $('pdfmenu').hidden = !$('pdfmenu').hidden; };
-document.addEventListener('click', e => { if (!e.target.closest('.menu')) $('pdfmenu').hidden = true; if (!e.target.closest('#people')) $('people').hidden = true; });
-$('pdfmenu').addEventListener('click', e => { if (e.target.closest('.mi')) $('pdfmenu').hidden = true; });
+// The two menus in the bar: PDF and Assistant. Opening one closes the other; a click elsewhere closes both.
+for (const [btn, pop, other] of [['pdfbtn', 'pdfmenu', 'aipop'], ['aibtn', 'aipop', 'pdfmenu']]) {
+  $(btn).onclick = e => { e.stopPropagation(); $(other).hidden = true; $(pop).hidden = !$(pop).hidden; };
+  $(pop).addEventListener('click', e => { if (e.target.closest('.mi')) $(pop).hidden = true; });
+}
+document.addEventListener('click', e => { if (!e.target.closest('.menu')) { $('pdfmenu').hidden = true; $('aipop').hidden = true; }
+  if (!e.target.closest('#people')) $('people').hidden = true; });
+
+// ⌘K: every action and place by name. Actions reuse the bar's own buttons, so they behave the same.
+let palItems = [], palAt = 0;
+function palCommands() {
+  const out = [], add = (group, icn, label, run, kbd) => out.push({ group, icn, label, run, kbd: kbd || '' });
+  const onCv = !isDoc(target), isApp = target.includes('/applications/');
+  if (onCv) {
+    add(tr('palDoc'), 'save', tr('saveRev'), saveRev, '⌘S');
+    add(tr('palDoc'), 'clock', tr('revisions'), openRevs);
+    add(tr('palDoc'), 'data', tr('draft'), redraft);
+    if (isApp) { add(tr('palAi'), 'spark', tr('generate'), openGen); add(tr('palAi'), 'chat', tr('prepTitleShort'), openPrep); }
+    add(tr('palPdf'), 'open', tr('openTab'), () => window.open(pdfUrl(), '_blank'));
+    add(tr('palPdf'), 'save', tr('download'), () => $('pdfdl').click());
+    if (!$('copybtn').hidden) { add(tr('palPdf'), 'copy', tr('copyFile'), () => $('copybtn').click()); add(tr('palPdf'), 'folder', tr('finder'), () => $('finderbtn').click()); }
+    for (const b of $('tabs').querySelectorAll('.tab')) add(tr('palTabs'), 'file', b.title, () => b.click());
+  }
+  const c = tree.find(x => x.person === ctxC);
+  if (c) {
+    for (const v of c.base) add(tr('palGo'), 'file', (v === 'generic' ? tr('generic') : v) + ' · ' + tr('baseCvs'), () => setTarget(c.person + '/base/' + v));
+    for (const a of c.apps) add(tr('palGo'), 'case', a.replace(/^\d{4}-\d{2}-/, '').replace(/-/g, ' ') + ' · ' + a.slice(0, 7), () => setTarget(c.person + '/applications/' + a));
+    add(tr('palGo'), 'plus', tr('newApp2'), () => openNewCase(c.person));
+    add(tr('palGo'), 'user', tr('profile'), () => setTarget(c.person + '/raw'));
+    add(tr('palGo'), 'spark', tr('personal'), () => setTarget(c.person + '/personal'));
+  }
+  add(tr('palGo'), 'spark', tr('instructions'), () => setTarget('doc/prompt'));
+  add(tr('palGo'), 'help', tr('howItWorks'), () => setTarget('doc/how'));
+  return out;
+}
+function drawPalette() {
+  const words = $('palq').value.toLowerCase().split(/\s+/).filter(Boolean), list = $('pallist');
+  palItems = palCommands().filter(i => words.every(w => (i.label + ' ' + i.group).toLowerCase().includes(w)));
+  palAt = Math.min(palAt, Math.max(0, palItems.length - 1)); list.replaceChildren();
+  if (!palItems.length) { list.append(el('div', 'none', tr('palNone'))); return; }
+  let group = '';
+  palItems.forEach((i, n) => {
+    if (i.group !== group) { group = i.group; list.append(el('div', 'ph', group)); }
+    const b = el('button', 'pi' + (n === palAt ? ' on' : '')); b.setAttribute('role', 'option');
+    b.append(icon(i.icn), el('span', '', i.label)); if (i.kbd) b.append(el('kbd', '', i.kbd));
+    b.onmouseenter = () => { palAt = n; list.querySelectorAll('.pi').forEach((x, k) => x.classList.toggle('on', k === n)); };
+    b.onclick = () => runPalette(n); list.append(b);
+  });
+  list.querySelector('.pi.on')?.scrollIntoView({ block: 'nearest' });
+}
+function openPalette() { $('palq').value = ''; palAt = 0; drawPalette(); $('palette').showModal(); $('palq').focus(); }
+function runPalette(n) { const i = palItems[n]; if (!i) return; $('palette').close(); setTimeout(i.run, 0); }
+$('kbtn').onclick = openPalette;
+$('palq').addEventListener('input', () => { palAt = 0; drawPalette(); });
+$('palq').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); palAt = (palAt + (e.key === 'ArrowDown' ? 1 : -1) + palItems.length) % Math.max(1, palItems.length); drawPalette(); }
+  else if (e.key === 'Enter') { e.preventDefault(); runPalette(palAt); }
+});
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('palette').open ? $('palette').close() : openPalette(); }
+  else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's' && !isDoc(target)) { e.preventDefault(); saveRev(); }
+});
 $('finderbtn').onclick = () => fileAction('/reveal', tr('shownFinder'));
 $('copybtn').onclick = () => fileAction('/copy', tr('pdfCopied'));
 $('revbtn').onclick = openRevs; $('savebtn').onclick = saveRev; $('backbtn').onclick = () => { rev = null; version = -1; drawBanner(); tick(true); };
