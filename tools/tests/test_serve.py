@@ -269,5 +269,40 @@ class ServeProfile(unittest.TestCase):
             self.assertTrue(json.load(f)[-1]["file"].endswith("/prep.md"))
 
 
+    def test_10_assistant_heartbeat(self):
+        # the AI chip: connected only while watch-feedback runs and its heartbeat is fresh.
+        # Its own person, so the other tests' feedback.json stays as they left it.
+        kari = os.path.join(self.tmp, "kari")
+        os.makedirs(kari)
+        try:
+            self.assertEqual(self.get("/assistant?c=kari")["connected"], False)
+            item = {"target": "kari/base/generic", "kind": "comment", "source": "cv", "quote": "q", "comment": "c"}
+            with open(os.path.join(kari, "feedback.json"), "w", encoding="utf-8") as f:
+                json.dump([dict(item, id=4, status="open"), dict(item, id=5, status="done")], f)
+            watch = subprocess.Popen([sys.executable, os.path.join(TOOLS, "watch-feedback.py"), "kari"], env=self.env,
+                                     stdout=subprocess.PIPE, text=True)
+            try:
+                self.assertIn("#4", watch.stdout.readline())
+                for _ in range(50):
+                    a = self.get("/assistant?c=kari")
+                    if a["connected"]:
+                        break
+                    time.sleep(0.1)
+                self.assertEqual((a["connected"], a["seen"]), (True, [4]))
+                self.assertNotIn(".assistant", [p["person"] for p in self.get("/state")["tree"]])
+            finally:
+                watch.terminate()
+                watch.wait()
+                watch.stdout.close()
+            beat = os.path.join(self.tmp, ".assistant", "kari.json")
+            self.assertFalse(os.path.exists(beat))
+            self.assertEqual(self.get("/assistant?c=kari")["connected"], False)
+            # a watcher that died without cleaning up goes stale
+            with open(beat, "w") as f:
+                json.dump({"pid": 1, "since": "x", "beat": time.time() - 60, "seen": [4]}, f)
+            self.assertEqual(self.get("/assistant?c=kari")["connected"], False)
+        finally:
+            shutil.rmtree(kari)
+
 if __name__ == "__main__":
     unittest.main()
