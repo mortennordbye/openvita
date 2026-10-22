@@ -143,10 +143,11 @@ def build(c, template, lang, profile_dir="", customers=""):
            f'<link rel="stylesheet" href="template:{template["name"]}/cv.css">', "</head>", "<body>", "",
            templates.brand_html(template), ""]
 
-    for photo in ("photo.jpg", "profile.jpg", "photo.png") if not profile_dir else ():
-        if os.path.isfile(os.path.join(profiles.person_dir(c), photo)):
-            out += [f'<div class="photo"><img src="../../{photo}" alt=""></div>', ""]
-            break
+    # The profile's photo (OpenSelf's person.photo, made in the Photo view), else one in the person's folder.
+    photos = [] if profile_dir else ([f"profile:{meta['photo']}"] if meta.get("photo") else []) + [
+        f"../../{f}" for f in ("photo.jpg", "profile.jpg", "photo.png") if os.path.isfile(os.path.join(profiles.person_dir(c), f))]
+    if photos:
+        out += [f'<div class="photo"><img src="{esc(photos[0])}" alt=""></div>', ""]
 
     # header
     out.append('<header class="header" data-entry="person">')

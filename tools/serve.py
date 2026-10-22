@@ -50,6 +50,7 @@ import profile_api  # noqa: E402  the Profile endpoints
 import render  # noqa: E402  HTML to PDF in Docker
 import templates  # noqa: E402  where templates are found
 from openself import model as pmodel  # noqa: E402
+from openself import photos  # noqa: E402
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -195,6 +196,9 @@ def watched(k):
     for t in templates.discover(c)[0]:
         files += [f for f in glob.glob(os.path.join(t["dir"], "**", "*"), recursive=True) if os.path.isfile(f)]
     files += glob.glob(os.path.join(d, "*.jpg")) + glob.glob(os.path.join(d, "*.png"))
+    if profiles.exists(c):
+        p = profiles.profile_dir(c)
+        files += [os.path.join(p, rel) for rel in photos.files(p)]
     return files
 
 
@@ -376,7 +380,7 @@ def sections(intro, files):
     return "\n".join(out) + "\n"
 
 
-DOC_RE = re.compile(r"doc/(how|prompt)|[\w.-]+/(raw|personal)")
+DOC_RE = re.compile(r"doc/(how|prompt)|[\w.-]+/(raw|personal|photo)")
 
 
 PROMPT_FILES = [("AGENTS.md", "the project: build, rules for facts and contact details, workflow"),
@@ -398,6 +402,8 @@ def doc_files(t):
     if t == "doc/prompt":
         return [f for f, _ in PROMPT_FILES]
     c, kind = t.split("/")
+    if kind == "photo":
+        return photo_files(c)
     return profile_files(c) if kind == "raw" else [f for f, _ in personal_files(c)]
 
 
@@ -408,6 +414,15 @@ def profile_files(c):
     p = profiles.profile_dir(c)
     shown = os.path.relpath(p, ROOT) if os.path.commonpath([ROOT, p]) == ROOT else p
     return [f"{shown}/{rel}" for rel in ["INDEX.md"] + pmodel.profile_files(p)]
+
+
+def photo_files(c):
+    """The files behind the Photo view: the profile's photos/ (OpenSelf's originals and edits)."""
+    if not profiles.exists(c):
+        return []
+    p = profiles.profile_dir(c)
+    shown = os.path.relpath(p, ROOT) if os.path.commonpath([ROOT, p]) == ROOT else p
+    return [f"{shown}/{rel}" for rel in photos.files(p)] or [f"{shown}/photos/"]
 
 
 CASE_FILES = ("job-ad.md", "notes.md", "prep.md")  # an application's Markdown tabs, read-only in the browser
@@ -482,8 +497,8 @@ def doc_view(t):
             "Shared by everyone. These are the instructions an assistant reads before it changes a CV. Sources, in order:",
             PROMPT_FILES)}
     c, kind = t.split("/")
-    if kind == "raw":
-        return {"type": "md", "files": files, "body": ""}  # shown by OpenSelf's UI (static/profile.js)
+    if kind in ("raw", "photo"):
+        return {"type": "md", "files": files, "body": ""}  # shown by OpenSelf's UI (static/profile.js), or static/photo.js
     return {"type": "md", "files": files, "body": sections(
         f"Only for {c}. The assistant reads this together with the shared instructions:", personal_files(c))}
 
@@ -617,6 +632,7 @@ ICONS = """
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></symbol>
 <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M9 10h12"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></symbol>
 <symbol id="i-back" viewBox="0 0 24 24"><path d="M10 6l-6 6 6 6M4 12h16"/></symbol>
 </defs></svg>"""
 
@@ -627,6 +643,7 @@ PAGE = r"""<!doctype html>
 <link rel="stylesheet" href="/vendor/pdfjs/pdf_viewer.min.css">
 <link rel="stylesheet" href="/openself/app.css">
 <link rel="stylesheet" href="/static/profile.css">
+<link rel="stylesheet" href="/static/photo.css">
 <style>
   /* OpenSelf's palette (openself/openself/web/static/app.css), so the two read as one app. */
   :root { color-scheme: dark; --bg: #1f1f23; --panel: #17171a; --line: #303036; --fg: #e6e6ea; --mut: #8e8e98;
@@ -998,6 +1015,7 @@ __ICONS__
 <script src="/vendor/marked/marked.min.js"></script>
 <script src="/openself/app.js"></script>
 <script src="/static/profile.js"></script>
+<script src="/static/photo.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.js';
 const $ = id => document.getElementById(id);
@@ -1015,7 +1033,7 @@ const T = {
     templateLabel: 'Template (how the CV looks, the content is the same)', adLabel: 'The job ad. Paste all of it, including any email from a broker.',
     adPh: 'Paste the job ad here', create: 'Create', copyPath: 'Click to copy the full path', pathCopied: 'Path copied',
     readOnly: 'Read only. Select text to comment.', shared: 'Shared', howItWorks: 'How it works', instructions: 'Instructions',
-    profile: 'Profile', profileNone: 'no profile', personal: 'Personal instructions', baseCvs: 'Base CVs', apps: 'Applications',
+    profile: 'Profile', photo: 'Photo', profileNone: 'no profile', personal: 'Personal instructions', baseCvs: 'Base CVs', apps: 'Applications',
     newBtn: 'New', newAppTip: 'New application from a job ad', generic: 'General', adTab: 'Job ad', notesTab: 'Notes', prepTab: 'Prep', formTab: 'Form: ',
     prep: 'Prepare', prepTip: 'Ask the assistant to brainstorm how to bring your experience into the interview or meeting',
     prepTitle: 'Prepare for the meeting', prepMeeting: 'The meeting: what kind, who you meet, how long, anything else',
@@ -1077,7 +1095,7 @@ const T = {
     templateLabel: 'Mal (utseendet til CV-en, innholdet er det samme)', adLabel: 'Annonsen. Lim inn hele teksten, også e-post fra en megler.',
     adPh: 'Lim inn annonsen her', create: 'Opprett', copyPath: 'Klikk for å kopiere hele stien', pathCopied: 'Sti kopiert',
     readOnly: 'Skrivebeskyttet. Marker tekst for å kommentere.', shared: 'Delt', howItWorks: 'Slik virker det', instructions: 'Instruksjoner',
-    profile: 'Profil', profileNone: 'ingen profil', personal: 'Personlige instruksjoner', baseCvs: 'Generelle CV-er', apps: 'Søknader',
+    profile: 'Profil', photo: 'Bilde', profileNone: 'ingen profil', personal: 'Personlige instruksjoner', baseCvs: 'Generelle CV-er', apps: 'Søknader',
     newBtn: 'Ny', newAppTip: 'Ny søknad fra en annonse', generic: 'Generell', adTab: 'Annonse', notesTab: 'Notater', prepTab: 'Forberedelse', formTab: 'Skjema: ',
     prep: 'Forbered', prepTip: 'Be assistenten finne ut hvordan du får brukt erfaringen din i intervjuet eller møtet',
     prepTitle: 'Forbered møtet', prepMeeting: 'Møtet: hva slags, hvem du møter, hvor lenge, ellers noe',
@@ -1141,7 +1159,7 @@ function applyLang() {
 }
 const START = __START__;
 let target = decodeURIComponent(location.hash.slice(1)) || START || (() => { try { return localStorage.getItem('openvita.target'); } catch (e) { return ''; } })() || '';
-const isDoc = t => /^doc\/(how|prompt)$/.test(t) || /^[\w.-]+\/(raw|personal)$/.test(t);
+const isDoc = t => /^doc\/(how|prompt)$/.test(t) || /^[\w.-]+\/(raw|personal|photo)$/.test(t);
 let ctxC = '';  // the person whose files comments are stored with, also while a shared doc is open
 const consC = () => target.startsWith('doc/') ? ctxC : target.split('/')[0];
 let formShown = '';
@@ -1168,11 +1186,12 @@ function cvOf(c) {
 function drawNav() {
   const nav = $('nav'), c = ctxC, p = tree.find(x => x.person === c); nav.replaceChildren();
   const kind = target.startsWith('doc/how') ? 'how' : target.startsWith('doc/prompt') ? 'prompt' : target.endsWith('/raw') ? 'raw'
-    : target.endsWith('/personal') ? 'personal' : 'cv';
+    : target.endsWith('/personal') ? 'personal' : target.endsWith('/photo') ? 'photo' : 'cv';
   const mk = (k, label, to, badge) => { const b = el('button', 'nv' + (k === kind ? ' on' : ''));
-    b.append(icon({ cv: 'file', raw: 'user', prompt: 'spark', how: 'help' }[k]), el('span', '', label));
+    b.append(icon({ cv: 'file', raw: 'user', photo: 'image', prompt: 'spark', how: 'help' }[k]), el('span', '', label));
     if (badge) b.append(el('span', 'badge', badge)); b.onclick = () => setTarget(to); nav.append(b); };
-  if (p) { mk('cv', tr('cvs'), cvOf(c)); mk('raw', tr('profile'), c + '/raw', p.stats && p.stats.questions ? String(p.stats.questions) : ''); }
+  if (p) { mk('cv', tr('cvs'), cvOf(c)); mk('raw', tr('profile'), c + '/raw', p.stats && p.stats.questions ? String(p.stats.questions) : '');
+    if (p.profile) mk('photo', tr('photo'), c + '/photo'); }
   mk('prompt', tr('instructions'), 'doc/prompt'); mk('how', tr('howItWorks'), 'doc/how');
   $('whoname').textContent = c || '—'; $('whoav').textContent = (c || '?').slice(0, 2);
   const menu = $('people'); menu.replaceChildren(el('div', 'empty', tr('people')));
@@ -1182,6 +1201,7 @@ function drawNav() {
 function setTarget(t) {
   target = t; tab = 'cv'; version = -1; rev = null; revs = null; $('pop').hidden = true; $('view').classList.remove('pfmode');
   if (pfUI && !t.endsWith('/raw')) { pfUI.destroy(); pfUI = null; pfC = ''; }  // leaving the profile: stop its UI
+  if (!t.endsWith('/photo')) phLeave();
   $('pathbar').replaceChildren(); $('pathbar').dataset.sig = '';
   if (!t.startsWith('doc/')) ctxC = t.split('/')[0];
   applyLang();
@@ -1334,6 +1354,7 @@ async function step(force, g) {
   if (isDoc(target)) {
     document.body.classList.add('doc');
     if (pfActive()) { await profileTick(); again(g, 1500); return; }
+    if (phActive()) { await photoTick(); again(g, 2000); return; }
     if (version !== -4) { version = -4; try { await showDoc(g); } catch (e) { $('msg').textContent = tr('couldNotFetch'); } }
     again(g, 1500); return;
   }
@@ -1524,7 +1545,7 @@ function checkSel() {
   const n = sel.anchorNode, host = n && (n.nodeType === 1 ? n : n.parentElement);
   if (!host || !host.closest('#view') || host.closest('#cbox') || host.closest('textarea, input, select, .pf-edit')) return;
   const sheet = host.closest('.sheet'), page = sheet ? [...$('view').querySelectorAll('.sheet')].indexOf(sheet) + 1 : 0;
-  const source = isDoc(target) ? ({ 'doc/how': 'how', 'doc/prompt': 'prompt' }[target] || (target.endsWith('/raw') ? 'profile' : 'personal')) : (tab === 'cv' ? 'cv' : tab);
+  const source = isDoc(target) ? ({ 'doc/how': 'how', 'doc/prompt': 'prompt' }[target] || (target.endsWith('/raw') ? 'profile' : target.endsWith('/photo') ? 'photo' : 'personal')) : (tab === 'cv' ? 'cv' : tab);
   const h1 = (() => { let n = host.closest('.md > *'); while (n) { if (n.tagName === 'H1') return n.textContent.trim(); n = n.previousElementSibling; } return ''; })();
   cctx = { quote, page, source, file: isDoc(target) ? h1 : '' };
   const sec = host.closest('[data-section]'); if (sec) { cctx.file = sec.dataset.file; cctx.section = sec.dataset.section; }
@@ -1764,7 +1785,7 @@ fetch('/state', { cache: 'no-store' }).then(r => r.json()).then(s => {
 
 
 PROFILE_POSTS = ("/profile-save", "/profile-new", "/profile-remove", "/profile-flag", "/profile-restore", "/profile-request",
-                 "/profile-import")
+                 "/profile-import", "/photo-add", "/photo-save", "/photo-use", "/photo-remove")
 
 
 def profile_request(c, d):
@@ -1891,6 +1912,12 @@ class Handler(BaseHTTPRequestHandler):
             self.json(dict(assistant_state(q["c"]), root=ROOT))
         elif u.path == "/favicon.svg":
             self.send(200, FAVICON.encode(), "image/svg+xml")
+        elif u.path == "/photo-list" and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):
+            code, body = profile_api.photo_list(q["c"])
+            self.json(body, code)
+        elif u.path == "/photo-file" and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):
+            f = profile_api.photo_path(q["c"], q.get("f", ""))
+            self.file(f) if f else self.send(404, b"not found", "text/plain")
         elif u.path.startswith("/profile") and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):
             c = q["c"]
             code, body = {"/profile": lambda: profile_api.data(c),
@@ -1926,7 +1953,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
         fn = {"/profile-save": profile_api.save, "/profile-new": profile_api.new, "/profile-remove": profile_api.remove,
               "/profile-flag": profile_api.flag, "/profile-restore": profile_api.restore, "/profile-request": profile_request,
-              "/profile-import": profile_api.import_}[path]
+              "/profile-import": profile_api.import_, "/photo-add": profile_api.photo_add,
+              "/photo-save": profile_api.photo_save, "/photo-use": profile_api.photo_use,
+              "/photo-remove": profile_api.photo_remove}[path]
         code, body = fn(c, data)
         self.json(body, code)
 
@@ -1938,7 +1967,7 @@ class Handler(BaseHTTPRequestHandler):
                 + PROFILE_POSTS or self.headers.get("X-OpenVita") != "1" or not host_ok:
             return self.send(403, b"forbidden", "text/plain")
         size = int(self.headers.get("Content-Length", "0") or 0)
-        if size > 2_000_000:
+        if size > (40_000_000 if path in ("/photo-add", "/photo-save") else 2_000_000):  # a photo, base64
             return self.json({"ok": False, "message": "too large"}, 413)
         try:
             data = json.loads(self.rfile.read(size) or b"{}")

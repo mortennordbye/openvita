@@ -8,7 +8,8 @@ WeasyPrint runs in the openvita Docker image (see Dockerfile). Templates can liv
 repository, so every template the person can use is mounted read-only at /tpl/<name> and the
 shared fonts at /tpl/_shared; `template:<name>/` in the CV becomes `/tpl/<name>/` in the HTML that
 is piped to WeasyPrint. A template's CSS can always reach the shared fonts as
-../_shared/. Set OPENVITA_RENDER=local to use a WeasyPrint and
+../_shared/. The person's profile is mounted read-only at /profile, so `profile:photos/...` in a
+CV shows a photo from the profile (OpenSelf's photos/, see the Photo view). Set OPENVITA_RENDER=local to use a WeasyPrint and
 pdftoppm installed on this machine instead of Docker.
 
 tools/serve.py keeps a warm worker (tools/render-worker.py) running in the container, restarted
@@ -18,6 +19,7 @@ when the set of mounts changes. Each function returns (ok, error text).
 import atexit
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -42,6 +44,8 @@ def mounts(c):
         real = os.path.realpath(os.path.join(local, p))
         if os.path.isdir(real) and os.path.commonpath([local, real]) != local:
             m[real] = f"/person/{p}"  # local/<p> links into an OpenSelf home
+    if profiles.exists(c):
+        m[os.path.realpath(profiles.profile_dir(c))] = "/profile"
     m[os.path.realpath(templates.SHARED)] = "/tpl/_shared"
     for t in templates.discover(c)[0]:
         m[t["dir"]] = f"/tpl/{t['name']}"
@@ -51,16 +55,21 @@ def mounts(c):
 def inside(m, path):
     """The container path of a host path, or None when it is not mounted."""
     path = os.path.realpath(path)
-    best = max((h for h in m if os.path.commonpath([h, path]) == h and not m[h].startswith("/tpl/")), key=len, default=None)
+    best = max((h for h in m if os.path.commonpath([h, path]) == h and not m[h].startswith("/tpl/") and m[h] != "/profile"),
+               key=len, default=None)
     # longest match wins, so a person's linked folder beats /work
     return None if best is None else m[best] + path[len(best):]
 
 
-def resolved(c, text, base="/tpl"):
+PROFILE_LINK = re.compile(r"""(["'(])profile:(photos/[\w./-]+)""")
+
+
+def resolved(c, text, base="/tpl", profile="/profile"):
     """The CV text laid out by its template (templates.laid_out), with template: links pointing at
-    base/<name>/ (the mounts, or a local mirror)."""
+    base/<name>/ (the mounts, or a local mirror) and profile: links at the profile."""
     known = set(templates.names(c))
     text = templates.laid_out(c, text)
+    text = PROFILE_LINK.sub(lambda m: f"{m.group(1)}{profile}/{m.group(2)}" if ".." not in m.group(2) else m.group(0), text)
 
     def to(match):
         name = match.group(1)
@@ -80,7 +89,7 @@ def mirror(c):
 def docker_args(m):
     args = ["docker", "run", "--rm", "-u", f"{os.getuid()}:{os.getgid()}"]
     for host, cont in m.items():
-        args += ["-v", f"{host}:{cont}" + (":ro" if cont.startswith("/tpl/") else "")]
+        args += ["-v", f"{host}:{cont}" + (":ro" if cont.startswith("/tpl/") or cont == "/profile" else "")]
     return args + ["-w", "/work", IMAGE]
 
 
@@ -140,7 +149,8 @@ def pdf_text(c, text, base, out, warm=False):
         try:
             r = subprocess.run([sys.executable, "-c", "import sys, weasyprint; "
                                 "weasyprint.HTML(string=sys.stdin.read(), base_url=sys.argv[1]).write_pdf(sys.argv[2])",
-                                base + "/", out], input=resolved(c, text, "file://" + d), capture_output=True, text=True)
+                                base + "/", out], input=resolved(c, text, "file://" + d, "file://" + (profiles.profile_dir(c) if profiles.exists(c) else "/nonexistent")),
+                               capture_output=True, text=True)
         finally:
             shutil.rmtree(d, ignore_errors=True)
         return r.returncode == 0, (r.stderr or "")[-3000:]
