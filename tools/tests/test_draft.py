@@ -17,6 +17,17 @@ class Draft(LocalDir, unittest.TestCase):
         with open(self.draft.write("ola", **kw), encoding="utf-8") as f:
             return f.read()
 
+    def test_profile_photo(self):
+        self.assertNotIn('class="photo"', self.cv())
+        from openself import photos
+        photos.add(self.prof, b"\x89PNG\r\n\x1a\n" + b"\0" * 16, "studio")
+        path = os.path.join(self.prof, "person.md")
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text.replace("photo:\n", "photo: photos/studio.png\n"))
+        self.assertIn('<div class="photo"><img src="profile:photos/studio.png" alt=""></div>', self.cv(force=True))
+
     def test_customers_hidden(self):
         self.profiles.set_config("ola", customers="hidden")
         html = self.cv()

@@ -32,7 +32,7 @@ local/                  everything personal, gitignored, one folder per person (
     AGENTS.md               the person's standing wishes
     tuning.md               lessons learned from their feedback
     feedback.json           comments and requests from the workbench, kept as history
-    photo.jpg               optional
+    photo.jpg               optional, older; the profile's photo (OpenSelf photos/, the Photo view) wins
     base/<variant>/cv.html  general CVs (generic, and any variant the person wants)
     applications/<yyyy-mm-company-role>/   cv.html, job-ad.md, notes.md, prep.md, forms/
     profile/                the profile, unless openvita.json points elsewhere; its own git repository

@@ -62,3 +62,27 @@ def restore(c, d):
 def import_(c, d):
     """Certifications from the Credly or Microsoft Learn pages in certifications.md (dry_run: only check)."""
     return api.import_(root_of(c), d)
+
+
+def photo_list(c):
+    return api.photo_list(root_of(c))
+
+
+def photo_path(c, rel):
+    return api.photo_path(root_of(c), rel)
+
+
+def photo_add(c, d):
+    return api.photo_add(root_of(c), d)
+
+
+def photo_save(c, d):
+    return api.photo_save(root_of(c), d)
+
+
+def photo_use(c, d):
+    return api.photo_use(root_of(c), d)
+
+
+def photo_remove(c, d):
+    return api.photo_remove(root_of(c), d)

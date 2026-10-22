@@ -90,7 +90,7 @@ This is what `make draft` writes. A CV written or edited by hand keeps to the sa
 
 ```html
 <!-- brand --><div class="brand"> img.brand-logo, p.brand-name, p.brand-url </div><!-- /brand -->
-<div class="photo"><img></div>                      only when local/<name>/photo.jpg exists
+<div class="photo"><img></div>                      the profile's photo (Photo view), else local/<name>/photo.jpg
 <header class="header">
   h1.name, p.role,
   div.contact > p.phone | p.email | p.place          each with span.icon.fa-phone|fa-envelope|fa-marker

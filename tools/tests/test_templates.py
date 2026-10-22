@@ -66,6 +66,8 @@ class Templates(LocalDir, unittest.TestCase):
         self.assertEqual(render.inside(m, os.path.join(ROOT, "build", "x.pdf")), "/work/build/x.pdf")
         out = render.resolved("", '<link href="template:acme/cv.css"><img src="template:nope/x.png">')
         self.assertEqual(out, '<link href="/tpl/acme/cv.css"><img src="template:nope/x.png">')
+        out = render.resolved("", '<img src="profile:photos/edits/cv.jpg"><img src="profile:photos/../person.md">')
+        self.assertEqual(out, '<img src="/profile/photos/edits/cv.jpg"><img src="profile:photos/../person.md">')
 
     CV = ('<html><head><link rel="stylesheet" href="template:acme/cv.css"></head><body>\n'
           '<!-- brand --><div class="brand"><img class="brand-logo" src="x.svg"></div><!-- /brand -->\n'
