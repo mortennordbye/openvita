@@ -222,12 +222,12 @@ async function phOpen(p, origName, edit, reset) {
   ph.origName = origName;
   const base = { format: PH_FORMAT, photo: p.file.split('/').pop(), crop: null, rotate: 0, flip: false,
                  adjust: Object.fromEntries(PH_ADJUST.map(k => [k, 0])),
-                 background: { mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 25, blur: 45 }, size: 900, note: '' };
+                 background: { mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 50, blur: 45 }, size: 900, note: '' };
   if (edit && edit.recipe && !reset) {
     const r = edit.recipe;
     ph.recipe = Object.assign(base, JSON.parse(JSON.stringify(r)));
     ph.recipe.adjust = Object.assign(base.adjust, r.adjust || {});
-    ph.recipe.background = Object.assign({ mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 25, blur: 45 }, r.background || {});
+    ph.recipe.background = Object.assign({ mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 50, blur: 45 }, r.background || {});
     ph.editing = edit.name; ph.name = edit.name;
     const c = ph.recipe.crop, rot = phRotatedSize(ph.work, ph.recipe);
     const a = c ? (c.w * rot.w) / (c.h * rot.h) : 0;
@@ -479,7 +479,7 @@ function phMask(d, W, H, bg) {
     if (x > 0) seed(p - 1, p); if (x < W - 1) seed(p + 1, p);
     if (p >= W) seed(p - W, p); if (p < W * (H - 1)) seed(p + W, p);
   }
-  const N = W * H, rb = Math.max(1, Math.round(1 + (bg.soft ?? 25) / 100 * 0.03 * Math.max(W, H)));
+  const N = W * H, rb = Math.max(1, Math.round(1 + (bg.soft ?? 50) / 100 * 0.03 * Math.max(W, H)));
   const mf = new Float32Array(N); for (let p = 0; p < N; p++) mf[p] = m[p];
   const near = phBoxBlur(mf, W, H, rb, 1);                            // > 0 within rb of the wall
   const fg = new Uint8Array(N); for (let p = 0; p < N; p++) fg[p] = !m[p] && near[p] === 0 ? 1 : 0;  // surely the person
