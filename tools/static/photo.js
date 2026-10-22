@@ -20,6 +20,8 @@ const PH_T = {
     leave: 'You have unsaved changes in the photo editor.', badName: 'A name is lower-case letters, digits and -',
     newEdit: 'New edit from this photo', bgHint: 'Works best on a plain background. Raise Reach until the wall is covered, lower it if it eats into hair or clothes.',
     cvHint: 'New drafts use the profile\'s photo. In a CV you edit by hand: <img src="profile:{0}">',
+    touchUp: 'Touch up', paintBg: 'Paint background', paintKeep: 'Paint keep', brush: 'Brush', undo: 'Undo', clear: 'Clear',
+    paintHint: 'Paint over what the fill got wrong: a light patch in the hair (background), or part of you it took (keep). Turn on the overlay to see it.',
   },
   nb: {
     photos: 'Bilder', edits: 'Redigeringer', add: 'Legg til bilde', crop: 'Beskjær', colors: 'Farger', background: 'Bakgrunn', save: 'Lagre',
@@ -35,6 +37,8 @@ const PH_T = {
     leave: 'Du har ulagrede endringer i bilderedigeringen.', badName: 'Et navn er små bokstaver, tall og -',
     newEdit: 'Ny redigering fra dette bildet', bgHint: 'Virker best på ensfarget bakgrunn. Øk Rekkevidde til veggen er dekket, senk den hvis den spiser av hår eller klær.',
     cvHint: 'Nye utkast bruker profilens bilde. I en CV du redigerer selv: <img src="profile:{0}">',
+    touchUp: 'Finpuss', paintBg: 'Mal bakgrunn', paintKeep: 'Mal behold', brush: 'Pensel', undo: 'Angre', clear: 'Fjern alt',
+    paintHint: 'Mal over det fyllet bommet på: en lys flekk i håret (bakgrunn), eller en del av deg det tok med (behold). Slå på visningen for å se det.',
   },
 };
 const pt = (k, ...a) => { let s = (PH_T[LANG] || PH_T.en)[k] ?? PH_T.en[k] ?? k; a.forEach((v, i) => { s = s.split('{' + i + '}').join(v); }); return s; };
@@ -82,12 +86,12 @@ async function photoTick() {
 async function phMount(c) {
   const box = el('div', 'ph');
   ph = { c, box, data: null, version: '', img: null, work: null, origName: '', name: '', recipe: null, aspect: 4 / 5,
-         dirty: false, showMask: false, editing: '' };
+         dirty: false, showMask: false, editing: '', paint: '', brush: 25, geo: null };
   $('view').classList.add('phmode'); $('view').replaceChildren(box);
   $('dot').className = 'dot'; $('msg').textContent = pt('ready'); $('hits').textContent = '';
   try { const d = await (await fetch('/doc?' + q({ t: target }), { cache: 'no-store' })).json(); drawPath((d.files || []).map(f => ['', f]), d.root); } catch (e) { /* the path bar is a convenience */ }
   box.innerHTML = `
-    <div class="ph-stage"><div class="ph-out"><canvas class="ph-canvas"></canvas><div class="ph-empty" hidden></div></div></div>
+    <div class="ph-stage"><div class="ph-out"><canvas class="ph-canvas"></canvas><div class="ph-brushring" hidden></div><div class="ph-empty" hidden></div></div></div>
     <div class="ph-side">
       <section class="ph-sec"><h3>${pt('photos')}</h3><div class="ph-thumbs ph-orig"></div>
         <label class="btn ph-add"><input type="file" accept="image/jpeg,image/png,image/webp" hidden>${pt('add')}</label></section>
@@ -105,7 +109,12 @@ async function phMount(c) {
             <label class="ph-sl ph-o-color ph-o-blur"><span>${pt('soft')} <b class="ph-v" data-v="soft"></b></span><input type="range" min="0" max="100" step="1" data-b="soft"></label>
             <label class="ph-sl ph-o-blur"><span>${pt('blurAmount')} <b class="ph-v" data-v="blur"></b></span><input type="range" min="0" max="100" step="1" data-b="blur"></label>
             <label class="ph-check"><input type="checkbox" class="ph-mask"> ${pt('showMask')}</label>
-            <p class="ph-hint">${pt('bgHint')}</p></div></section>
+            <p class="ph-hint">${pt('bgHint')}</p>
+            <div class="ph-paint"><span class="ph-lab">${pt('touchUp')}</span>
+              <div class="ph-seg"><button class="btn" data-paint="background">${pt('paintBg')}</button><button class="btn" data-paint="keep">${pt('paintKeep')}</button></div>
+              <label class="ph-sl"><span>${pt('brush')} <b class="ph-v" data-v="brush"></b></span><input type="range" min="1" max="100" step="1" class="ph-brushsize"></label>
+              <div class="ph-row"><button class="btn ph-undo">${pt('undo')}</button><button class="btn ph-clear">${pt('clear')}</button><span class="ph-count"></span></div>
+              <p class="ph-hint">${pt('paintHint')}</p></div></div></section>
         <section class="ph-sec"><h3>${pt('save')}</h3>
           <label class="ph-field"><span>${pt('name')}</span><input class="ph-name" spellcheck="false"></label>
           <label class="ph-field"><span>${pt('note')}</span><input class="ph-note" placeholder="${pt('notePh')}"></label>
@@ -146,6 +155,12 @@ async function phMount(c) {
   $$('.ph-note').oninput = e => { ph.recipe.note = e.target.value; ph.dirty = true; phStatus(); };
   $$('.ph-name').oninput = e => { ph.name = e.target.value.trim(); ph.dirty = true; phStatus(); };
   $$('.ph-save').onclick = phSave;
+  box.querySelectorAll('[data-paint]').forEach(b => b.onclick = () => { ph.paint = ph.paint === b.dataset.paint ? '' : b.dataset.paint; phChanged(true); });
+  $$('.ph-brushsize').value = ph.brush;
+  $$('.ph-brushsize').oninput = e => { ph.brush = Number(e.target.value); phChanged(true); };
+  $$('.ph-undo').onclick = () => { const pa = ph.recipe.background.paint || []; if (pa.length) { pa.pop(); phChanged(); } };
+  $$('.ph-clear').onclick = () => { if ((ph.recipe.background.paint || []).length) { ph.recipe.background.paint = []; phChanged(); } };
+  phPaintDrag($$('.ph-canvas'), $$('.ph-brushring'));
   $$('.ph-reset').onclick = () => { if (ph.origName) phStart(ph.origName, ph.editing ? null : undefined, true); };
   phCropDrag($$('.ph-cropbox'));
 }
@@ -222,12 +237,12 @@ async function phOpen(p, origName, edit, reset) {
   ph.origName = origName;
   const base = { format: PH_FORMAT, photo: p.file.split('/').pop(), crop: null, rotate: 0, flip: false,
                  adjust: Object.fromEntries(PH_ADJUST.map(k => [k, 0])),
-                 background: { mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 50, blur: 45 }, size: 900, note: '' };
+                 background: { mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 50, blur: 45, paint: [] }, size: 900, note: '' };
   if (edit && edit.recipe && !reset) {
     const r = edit.recipe;
     ph.recipe = Object.assign(base, JSON.parse(JSON.stringify(r)));
     ph.recipe.adjust = Object.assign(base.adjust, r.adjust || {});
-    ph.recipe.background = Object.assign({ mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 50, blur: 45 }, r.background || {});
+    ph.recipe.background = Object.assign({ mode: 'keep', color: '#eef1f5', tolerance: 30, soft: 50, blur: 45, paint: [] }, JSON.parse(JSON.stringify(r.background || {})));
     ph.editing = edit.name; ph.name = edit.name;
     const c = ph.recipe.crop, rot = phRotatedSize(ph.work, ph.recipe);
     const a = c ? (c.w * rot.w) / (c.h * rot.h) : 0;
@@ -266,7 +281,12 @@ function phChanged(fresh) {
   box.querySelectorAll('.ph-sw').forEach(b => b.classList.toggle('on', b.dataset.color.toLowerCase() === r.background.color.toLowerCase()));
   box.querySelector('.ph-pick').value = r.background.color;
   box.querySelector('.ph-bgopts').dataset.mode = r.background.mode;
-  const show = { rotate: (r.rotate > 0 ? '+' : '') + r.rotate + '°', tolerance: r.background.tolerance, soft: r.background.soft, blur: r.background.blur };
+  if (r.background.mode === 'keep') ph.paint = '';
+  box.querySelectorAll('[data-paint]').forEach(b => b.classList.toggle('on', b.dataset.paint === ph.paint));
+  box.querySelector('.ph-canvas').classList.toggle('painting', !!ph.paint);
+  const n = (r.background.paint || []).length; box.querySelector('.ph-count').textContent = n ? `${n}` : '';
+  box.querySelector('.ph-undo').disabled = box.querySelector('.ph-clear').disabled = !n;
+  const show = { rotate: (r.rotate > 0 ? '+' : '') + r.rotate + '°', tolerance: r.background.tolerance, soft: r.background.soft, blur: r.background.blur, brush: ph.brush };
   for (const k of PH_ADJUST) show[k] = (r.adjust[k] > 0 ? '+' : '') + (r.adjust[k] || 0);
   box.querySelectorAll('.ph-v').forEach(b => { b.textContent = show[b.dataset.v]; });
   box.querySelector('.ph-cvhint').textContent = pt('cvHint', `photos/edits/${ph.name || 'cv'}.jpg`);
@@ -388,7 +408,8 @@ function phRender(img, r, long, mask) {
   ctx.drawImage(rot, sx, sy, sw, sh, 0, 0, W, H);
   const im = ctx.getImageData(0, 0, W, H), d = im.data;
   const bg = r.background || { mode: 'keep' };
-  const mk = bg.mode !== 'keep' || mask ? phMask(d, W, H, bg) : null;
+  const force = bg.mode !== 'keep' && (bg.paint || []).length ? phPaintLayer(img, r, W, H, sx, sy, k, rot) : null;
+  const mk = bg.mode !== 'keep' || mask ? phMask(d, W, H, bg, force) : null;
   phAdjust(d, W, H, r.adjust || {});
   if (bg.mode === 'color' || bg.mode === 'blur') {
     // Swap the wall's share of each pixel for the new background: out = C + t * (new - wall). A
@@ -398,21 +419,87 @@ function phRender(img, r, long, mask) {
     const col = [1, 3, 5].map(i => parseInt(bg.color.slice(i, i + 2), 16));
     const blurred = bg.mode === 'blur' ? phLocal(d, W, H, mk.m, Math.max(2, Math.round((bg.blur || 0) / 100 * 0.05 * Math.max(W, H)))) : null;
     for (let p = 0, i = 0; p < W * H; p++, i += 4) {
-      const t = mk.t[p]; if (!t) continue;
+      const t = mk.t[p], f = mk.pf[p]; if (!t && !f) continue;
       const flat = t ** 6;
       for (let ch = 0; ch < 3; ch++) {
         const c = d[i + ch], o = wall[ch][p] < 0 ? c : wall[ch][p];
         const nv = blurred ? (blurred[ch][p] < 0 ? c : blurred[ch][p]) : col[ch];
-        const shifted = c + t * (nv - o);
-        d[i + ch] = shifted + (nv - shifted) * flat;
+        const shifted = Math.max(0, Math.min(255, c + t * (nv - o)));
+        const swapped = shifted + (nv - shifted) * flat;
+        d[i + ch] = swapped + (nv - swapped) * f;
       }
     }
   }
   // Corners left empty by straightening: white (a JPEG has no transparency).
   for (let i = 0; i < d.length; i += 4) if (d[i + 3] < 255) { const a = d[i + 3] / 255; for (let ch = 0; ch < 3; ch++) d[i + ch] = d[i + ch] * a + 255 * (1 - a); d[i + 3] = 255; }
-  if (mask && mk) for (let p = 0, i = 0; p < W * H; p++, i += 4) { const a = mk.t[p] * 0.55; d[i] += (255 - d[i]) * a; d[i + 1] *= 1 - a; d[i + 2] *= 1 - a; }
+  if (mask && mk) for (let p = 0, i = 0; p < W * H; p++, i += 4) { const a = Math.max(mk.t[p], mk.pf[p]) * 0.55; d[i] += (255 - d[i]) * a; d[i + 1] *= 1 - a; d[i + 2] *= 1 - a; }
   ctx.putImageData(im, 0, 0);
+  out.geo = { sx, sy, k, rw: rot.width, rh: rot.height, iw: img.width, ih: img.height };
   return out;
+}
+
+// Touch-up strokes as one layer: +1 where painted background, -1 where painted keep, the later
+// stroke over the earlier, with a soft edge. Points are fractions of the original (before
+// straightening), so turning the photo afterwards keeps them in place.
+function phPaintLayer(img, r, W, H, sx, sy, k, rot) {
+  const N = W * H, force = new Float32Array(N), c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d'), a = r.rotate * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a), long = Math.max(img.width, img.height);
+  const map = ([u, v]) => {
+    let x = u * img.width - img.width / 2; const y = v * img.height - img.height / 2;
+    if (r.flip) x = -x;
+    return [(x * cos - y * sin + rot.width / 2 - sx) * k, (x * sin + y * cos + rot.height / 2 - sy) * k];
+  };
+  for (const st of r.background.paint) {
+    if (!st.points || !st.points.length) continue;
+    const R = Math.max(1, st.size * long * k), pts = st.points.map(map);
+    ctx.clearRect(0, 0, W, H); ctx.fillStyle = ctx.strokeStyle = '#fff'; ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = 2 * R;
+    ctx.beginPath();
+    if (pts.length === 1) { ctx.arc(pts[0][0], pts[0][1], R, 0, 2 * Math.PI); ctx.fill(); }
+    else { ctx.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) ctx.lineTo(q[0], q[1]); ctx.stroke(); }
+    const al = ctx.getImageData(0, 0, W, H).data;
+    let f = new Float32Array(N); for (let p = 0; p < N; p++) f[p] = al[p * 4 + 3] / 255;
+    const soft = Math.round(R * 0.35); if (soft) f = phBoxBlur(f, W, H, soft, 2);
+    const sign = st.mode === 'keep' ? -1 : 1;
+    for (let p = 0; p < N; p++) if (f[p] > 0.002) force[p] = force[p] * (1 - f[p]) + sign * f[p];
+  }
+  return force;
+}
+
+// Painting on the preview: a stroke per press, its points as fractions of the original.
+function phPaintDrag(cv, ring) {
+  let stroke = null;
+  const toOriginal = e => {
+    const g = ph.geo, rect = cv.getBoundingClientRect(), r = ph.recipe;
+    const X = (e.clientX - rect.left) * cv.width / rect.width, Y = (e.clientY - rect.top) * cv.height / rect.height;
+    const rx = X / g.k + g.sx - g.rw / 2, ry = Y / g.k + g.sy - g.rh / 2, a = -r.rotate * Math.PI / 180;
+    let x = rx * Math.cos(a) - ry * Math.sin(a); const y = rx * Math.sin(a) + ry * Math.cos(a);
+    if (r.flip) x = -x;
+    return [Math.round((x / g.iw + 0.5) * 10000) / 10000, Math.round((y / g.ih + 0.5) * 10000) / 10000];
+  };
+  const size = () => 0.004 + ph.brush / 100 * 0.08;  // brush radius, a fraction of the original's long side
+  const showRing = e => {
+    if (!ph || !ph.paint || !ph.geo) { ring.hidden = true; return; }
+    const rect = cv.getBoundingClientRect(), box = ring.parentElement.getBoundingClientRect();
+    const d = 2 * size() * Math.max(ph.geo.iw, ph.geo.ih) * ph.geo.k * rect.width / cv.width;
+    Object.assign(ring.style, { width: d + 'px', height: d + 'px', left: e.clientX - box.left - d / 2 + 'px', top: e.clientY - box.top - d / 2 + 'px' });
+    ring.className = 'ph-brushring ' + ph.paint; ring.hidden = false;
+  };
+  cv.addEventListener('pointerdown', e => {
+    if (!ph || !ph.paint || !ph.geo) return;
+    const bg = ph.recipe.background; bg.paint = bg.paint || [];
+    stroke = { mode: ph.paint, size: Math.round(size() * 10000) / 10000, points: [toOriginal(e)] };
+    bg.paint.push(stroke); cv.setPointerCapture(e.pointerId); e.preventDefault(); phChanged();
+  });
+  cv.addEventListener('pointermove', e => {
+    showRing(e);
+    if (!stroke) return;
+    const q = toOriginal(e), last = stroke.points[stroke.points.length - 1];
+    if (Math.hypot(q[0] - last[0], q[1] - last[1]) < stroke.size * 0.3) return;
+    stroke.points.push(q); phChanged();
+  });
+  const end = () => { stroke = null; };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  cv.addEventListener('pointerleave', () => { ring.hidden = true; });
 }
 
 // Brightness, contrast, saturation, warmth and sharpness, each -100..100 (0 is none).
@@ -443,7 +530,7 @@ function phAdjust(d, W, H, a) {
 // r: the width of the edge band}. In the band along the outline a pixel is a mix of wall and
 // person; its share of wall comes from where its colour lies between the wall around it and the
 // person next to it (the usual matting estimate, from local averages).
-function phMask(d, W, H, bg) {
+function phMask(d, W, H, bg, force) {
   const tol = bg.tolerance ?? 30, thr = 8 + tol * 0.9, thr2 = thr * thr, edge = 6 + tol * 0.35, edge2 = edge * edge;
   const samples = [], at = (x, y) => (y * W + x) * 4;
   const step = Math.max(1, Math.round(Math.max(W, H) / 300));
@@ -479,11 +566,14 @@ function phMask(d, W, H, bg) {
     if (x > 0) seed(p - 1, p); if (x < W - 1) seed(p + 1, p);
     if (p >= W) seed(p - W, p); if (p < W * (H - 1)) seed(p + W, p);
   }
+  // Painted keep takes pixels out of the wall; painted background is not added to it (its colours are
+  // hair or clothes, not wall, and would spoil the wall estimate next to it).
+  if (force) for (let p = 0; p < force.length; p++) if (force[p] < -0.5) m[p] = 0;
   const N = W * H, rb = Math.max(1, Math.round(1 + (bg.soft ?? 50) / 100 * 0.03 * Math.max(W, H)));
   const mf = new Float32Array(N); for (let p = 0; p < N; p++) mf[p] = m[p];
-  const near = phBoxBlur(mf, W, H, rb, 1);                            // > 0 within rb of the wall
+  const near = phBoxBlur(mf, W, H, rb * 2, 1);                        // > 0 within 2rb of the wall: the band
   const fg = new Uint8Array(N); for (let p = 0; p < N; p++) fg[p] = !m[p] && near[p] === 0 ? 1 : 0;  // surely the person
-  const wall = phLocal(d, W, H, m, rb * 2 + 2), person = phLocal(d, W, H, fg, rb * 3 + 2);
+  const wall = phLocal(d, W, H, m, rb * 3 + 2), person = phLocal(d, W, H, fg, rb * 3 + 2);
   const t = new Float32Array(N);
   for (let p = 0, i = 0; p < N; p++, i += 4) {
     if (m[p]) { t[p] = 1; continue; }
@@ -499,7 +589,12 @@ function phMask(d, W, H, bg) {
     }
     t[p] = Math.max(0, Math.min(1, a)) * Math.min(1, near[p] * 3);
   }
-  return { m, t: phBoxBlur(t, W, H, 1, 1), r: rb };
+  const out = phBoxBlur(t, W, H, 1, 1);
+  // Painted keep lowers the share of wall; painted background is blended in after the swap (pf),
+  // since the swap assumes a pixel is partly wall, and a painted one may be all hair.
+  const pf = new Float32Array(N);
+  if (force) for (let p = 0; p < N; p++) { const f = force[p]; if (f > 0) pf[p] = f; else if (f < 0) out[p] *= 1 + f; }
+  return { m, t: out, pf, r: rb };
 }
 
 // The average colour of the pixels in mask m around each pixel (box of radius r), per channel;
@@ -538,6 +633,7 @@ function phPreview() {
   if (!ph || !ph.work || !ph.recipe) return;
   const out = phRender(ph.work, ph.recipe, PH_PREVIEW, ph.showMask), cv = ph.box.querySelector('.ph-canvas');
   cv.width = out.width; cv.height = out.height; cv.getContext('2d').drawImage(out, 0, 0);
+  ph.geo = out.geo;
 }
 
 // ---- actions --------------------------------------------------------------------------------
@@ -569,6 +665,7 @@ async function phSave() {
   try {
     const r = JSON.parse(JSON.stringify(ph.recipe));
     if (!r.note) delete r.note;
+    if (!(r.background.paint || []).length) delete r.background.paint;
     const out = phRender(ph.img, r, r.size, false);
     const j = await phPost('/photo-save', { name, recipe: r, use: ph.box.querySelector('.ph-use').checked,
                                             data: await phDataUrl(await phBlob(out, 'image/jpeg', 0.9)) });
