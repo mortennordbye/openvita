@@ -388,19 +388,29 @@ function phRender(img, r, long, mask) {
   ctx.drawImage(rot, sx, sy, sw, sh, 0, 0, W, H);
   const im = ctx.getImageData(0, 0, W, H), d = im.data;
   const bg = r.background || { mode: 'keep' };
-  const m = bg.mode !== 'keep' || mask ? phMask(d, W, H, bg) : null;
+  const mk = bg.mode !== 'keep' || mask ? phMask(d, W, H, bg) : null;
   phAdjust(d, W, H, r.adjust || {});
-  if (bg.mode === 'color') {
+  if (bg.mode === 'color' || bg.mode === 'blur') {
+    // Swap the wall's share of each pixel for the new background: out = C + t * (new - wall). A
+    // strand of hair that is 60% wall gets 60% of the new colour, so no light fringe is left.
+    // Deep in the background (t near 1) the result is the new background, flat.
+    const wall = phLocal(d, W, H, mk.m, mk.r * 2 + 2);
     const col = [1, 3, 5].map(i => parseInt(bg.color.slice(i, i + 2), 16));
-    for (let p = 0, i = 0; p < W * H; p++, i += 4) { const a = m[p]; if (a) for (let ch = 0; ch < 3; ch++) d[i + ch] = d[i + ch] + (col[ch] - d[i + ch]) * a; }
-  } else if (bg.mode === 'blur') {
-    const rad = Math.max(1, Math.round((bg.blur || 0) / 100 * 0.035 * Math.max(W, H)));
-    const blurred = [0, 1, 2].map(ch => { const f = new Float32Array(W * H); for (let p = 0; p < W * H; p++) f[p] = d[p * 4 + ch]; return phBoxBlur(f, W, H, rad, 3); });
-    for (let p = 0, i = 0; p < W * H; p++, i += 4) { const a = m[p]; if (a) for (let ch = 0; ch < 3; ch++) d[i + ch] = d[i + ch] + (blurred[ch][p] - d[i + ch]) * a; }
+    const blurred = bg.mode === 'blur' ? phLocal(d, W, H, mk.m, Math.max(2, Math.round((bg.blur || 0) / 100 * 0.05 * Math.max(W, H)))) : null;
+    for (let p = 0, i = 0; p < W * H; p++, i += 4) {
+      const t = mk.t[p]; if (!t) continue;
+      const flat = t ** 6;
+      for (let ch = 0; ch < 3; ch++) {
+        const c = d[i + ch], o = wall[ch][p] < 0 ? c : wall[ch][p];
+        const nv = blurred ? (blurred[ch][p] < 0 ? c : blurred[ch][p]) : col[ch];
+        const shifted = c + t * (nv - o);
+        d[i + ch] = shifted + (nv - shifted) * flat;
+      }
+    }
   }
   // Corners left empty by straightening: white (a JPEG has no transparency).
   for (let i = 0; i < d.length; i += 4) if (d[i + 3] < 255) { const a = d[i + 3] / 255; for (let ch = 0; ch < 3; ch++) d[i + ch] = d[i + ch] * a + 255 * (1 - a); d[i + 3] = 255; }
-  if (mask && m) for (let p = 0, i = 0; p < W * H; p++, i += 4) { const a = m[p] * 0.55; d[i] += (255 - d[i]) * a; d[i + 1] *= 1 - a; d[i + 2] *= 1 - a; }
+  if (mask && mk) for (let p = 0, i = 0; p < W * H; p++, i += 4) { const a = mk.t[p] * 0.55; d[i] += (255 - d[i]) * a; d[i + 1] *= 1 - a; d[i + 2] *= 1 - a; }
   ctx.putImageData(im, 0, 0);
   return out;
 }
@@ -428,8 +438,11 @@ function phAdjust(d, W, H, a) {
 
 // What is background: the colours along the top and the sides (where a portrait's wall is),
 // grown inwards over every connected pixel close to one of them, stopping at sharp edges (the
-// outline of hair, face and clothes). Returns 0..1 per pixel, with a soft edge. No model: this is
-// a flood fill, so it suits plain walls and studio backdrops.
+// outline of hair, face and clothes). No model: this is a flood fill, so it suits plain walls and
+// studio backdrops. Returns {m: the filled wall (0/1), t: how much of each pixel is wall (0..1),
+// r: the width of the edge band}. In the band along the outline a pixel is a mix of wall and
+// person; its share of wall comes from where its colour lies between the wall around it and the
+// person next to it (the usual matting estimate, from local averages).
 function phMask(d, W, H, bg) {
   const tol = bg.tolerance ?? 30, thr = 8 + tol * 0.9, thr2 = thr * thr, edge = 6 + tol * 0.35, edge2 = edge * edge;
   const samples = [], at = (x, y) => (y * W + x) * 4;
@@ -445,7 +458,7 @@ function phMask(d, W, H, bg) {
   }
   clusters.sort((a, b) => b.n - a.n);
   const refs = clusters.filter(c => c.n >= samples.length * 0.06).slice(0, 4).map(c => [c.r / c.n, c.g / c.n, c.b / c.n]);
-  const near = i => {
+  const isWall = i => {
     if (d[i + 3] < 128) return true;  // the empty corners of a straightened photo
     for (const [r, g, b] of refs) { const dr = d[i] - r, dg = d[i + 1] - g, db = d[i + 2] - b; if (dr * dr + dg * dg + db * db < thr2) return true; }
     return false;
@@ -458,7 +471,7 @@ function phMask(d, W, H, bg) {
     const dr = d[i] - d[j], dg = d[i + 1] - d[j + 1], db = d[i + 2] - d[j + 2];
     return dr * dr + dg * dg + db * db < edge2;
   };
-  const seed = (p, from) => { if (!m[p] && near(p * 4) && (from < 0 || smooth(p, from))) { m[p] = 1; queue[tail++] = p; } };
+  const seed = (p, from) => { if (!m[p] && isWall(p * 4) && (from < 0 || smooth(p, from))) { m[p] = 1; queue[tail++] = p; } };
   for (let x = 0; x < W; x++) seed(x, -1);
   for (let y = 0; y < H; y++) { seed(y * W, -1); seed(y * W + W - 1, -1); }
   while (head < tail) {
@@ -466,9 +479,42 @@ function phMask(d, W, H, bg) {
     if (x > 0) seed(p - 1, p); if (x < W - 1) seed(p + 1, p);
     if (p >= W) seed(p - W, p); if (p < W * (H - 1)) seed(p + W, p);
   }
-  const f = new Float32Array(W * H); for (let p = 0; p < W * H; p++) f[p] = m[p];
-  const rad = Math.round((bg.soft ?? 25) / 100 * 0.02 * Math.max(W, H));
-  return rad ? phBoxBlur(f, W, H, rad, 2) : f;
+  const N = W * H, rb = Math.max(1, Math.round(1 + (bg.soft ?? 25) / 100 * 0.03 * Math.max(W, H)));
+  const mf = new Float32Array(N); for (let p = 0; p < N; p++) mf[p] = m[p];
+  const near = phBoxBlur(mf, W, H, rb, 1);                            // > 0 within rb of the wall
+  const fg = new Uint8Array(N); for (let p = 0; p < N; p++) fg[p] = !m[p] && near[p] === 0 ? 1 : 0;  // surely the person
+  const wall = phLocal(d, W, H, m, rb * 2 + 2), person = phLocal(d, W, H, fg, rb * 3 + 2);
+  const t = new Float32Array(N);
+  for (let p = 0, i = 0; p < N; p++, i += 4) {
+    if (m[p]) { t[p] = 1; continue; }
+    if (!near[p] || wall[0][p] < 0) continue;
+    let a;
+    if (person[0][p] >= 0) {  // project the colour onto the line from the person's colour to the wall's
+      let num = 0, den = 0;
+      for (let ch = 0; ch < 3; ch++) { const bf = wall[ch][p] - person[ch][p]; num += (d[i + ch] - person[ch][p]) * bf; den += bf * bf; }
+      a = den > thr2 ? num / den : 0;
+    } else {                  // no person colour nearby: by distance to the wall
+      let dd = 0; for (let ch = 0; ch < 3; ch++) { const x = d[i + ch] - wall[ch][p]; dd += x * x; }
+      a = 1 - Math.sqrt(dd) / (2.2 * thr);
+    }
+    t[p] = Math.max(0, Math.min(1, a)) * Math.min(1, near[p] * 3);
+  }
+  return { m, t: phBoxBlur(t, W, H, 1, 1), r: rb };
+}
+
+// The average colour of the pixels in mask m around each pixel (box of radius r), per channel;
+// -1 where none is near.
+function phLocal(d, W, H, m, r) {
+  const N = W * H, n = new Float32Array(N);
+  for (let p = 0; p < N; p++) n[p] = m[p];
+  const nb = phBoxBlur(n, W, H, r, 2);
+  return [0, 1, 2].map(ch => {
+    const f = new Float32Array(N);
+    for (let p = 0; p < N; p++) f[p] = m[p] ? d[p * 4 + ch] : 0;
+    const out = phBoxBlur(f, W, H, r, 2);
+    for (let p = 0; p < N; p++) out[p] = nb[p] > 1e-3 ? out[p] / nb[p] : -1;
+    return out;
+  });
 }
 
 // A box blur run `passes` times (three is close to a Gaussian), separable, on one channel.
