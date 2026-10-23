@@ -123,6 +123,9 @@ active = {"key": ""}
 recent = {}  # target -> last time a browser asked about it
 
 
+NAME = profiles.NAME  # a person's name, one path segment
+
+
 # A target is "<person>/<path>", where path is base/<variant> or applications/<case>.
 def parse(k):
     c, _, path = k.partition("/")
@@ -131,7 +134,7 @@ def parse(k):
 
 def valid(k):
     c, path = parse(k)
-    return bool(re.fullmatch(r"[\w.-]+", c)) and bool(re.fullmatch(r"(base|applications)/[\w.-]+", path))
+    return bool(NAME.fullmatch(c)) and bool(re.fullmatch(r"(base|applications)/\w[\w.-]{0,99}", path))
 
 
 def case_dir(k):
@@ -380,7 +383,7 @@ def sections(intro, files):
     return "\n".join(out) + "\n"
 
 
-DOC_RE = re.compile(r"doc/(how|prompt)|[\w.-]+/(raw|personal|photo)")
+DOC_RE = re.compile(r"doc/(how|prompt)|\w[\w.-]{0,99}/(raw|personal|photo)")
 
 
 PROMPT_FILES = [("AGENTS.md", "the project: build, rules for facts and contact details, workflow"),
@@ -1159,7 +1162,7 @@ function applyLang() {
 }
 const START = __START__;
 let target = decodeURIComponent(location.hash.slice(1)) || START || (() => { try { return localStorage.getItem('openvita.target'); } catch (e) { return ''; } })() || '';
-const isDoc = t => /^doc\/(how|prompt)$/.test(t) || /^[\w.-]+\/(raw|personal|photo)$/.test(t);
+const isDoc = t => /^doc\/(how|prompt)$/.test(t) || /^\w[\w.-]{0,99}\/(raw|personal|photo)$/.test(t);
 let ctxC = '';  // the person whose files comments are stored with, also while a shared doc is open
 const consC = () => target.startsWith('doc/') ? ctxC : target.split('/')[0];
 let formShown = '';
@@ -1834,7 +1837,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def send(self, code, body, ctype, cache="no-store"):
         self.send_response(code)
-        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Type", re.sub(r"[\r\n]", "", ctype))
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", cache)
         self.end_headers()
@@ -1851,7 +1854,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(404, b"not found", "text/plain")
         self.send(200, data, ctype or mimetypes.guess_type(f)[0] or "application/octet-stream")
 
+    def host_ok(self):
+        return self.headers.get("Host", "") in (f"127.0.0.1:{PORT}", f"localhost:{PORT}")
+
     def do_GET(self):
+        # Another site resolving its name to 127.0.0.1 (DNS rebinding) must not read anything.
+        if not self.host_ok():
+            return self.send(403, b"forbidden", "text/plain")
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         t = q.get("t", "")
@@ -1906,19 +1915,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(500, str(e).encode(), "text/plain; charset=utf-8")
             self.file(f, "application/pdf" if u.path == "/form-pdf" else
                       "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        elif u.path == "/comments" and re.fullmatch(r"[\w.-]+", q.get("c", "")):
+        elif u.path == "/comments" and NAME.fullmatch(q.get("c", "")):
             self.json(load_feedback(q["c"]))
-        elif u.path == "/assistant" and re.fullmatch(r"[\w.-]+", q.get("c", "")) and q["c"] not in profiles.RESERVED:
+        elif u.path == "/assistant" and NAME.fullmatch(q.get("c", "")) and q["c"] not in profiles.RESERVED:
             self.json(dict(assistant_state(q["c"]), root=ROOT))
         elif u.path == "/favicon.svg":
             self.send(200, FAVICON.encode(), "image/svg+xml")
-        elif u.path == "/photo-list" and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):
+        elif u.path == "/photo-list" and NAME.fullmatch(q.get("c", "")) and profiles.exists(q["c"]):
             code, body = profile_api.photo_list(q["c"])
             self.json(body, code)
-        elif u.path == "/photo-file" and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):
+        elif u.path == "/photo-file" and NAME.fullmatch(q.get("c", "")) and profiles.exists(q["c"]):
             f = profile_api.photo_path(q["c"], q.get("f", ""))
             self.file(f) if f else self.send(404, b"not found", "text/plain")
-        elif u.path.startswith("/profile") and re.fullmatch(r"[\w.-]+", q.get("c", "")) and profiles.exists(q["c"]):
+        elif u.path.startswith("/profile") and NAME.fullmatch(q.get("c", "")) and profiles.exists(q["c"]):
             c = q["c"]
             code, body = {"/profile": lambda: profile_api.data(c),
                           "/profile-state": lambda: profile_api.state(c),
@@ -1949,7 +1958,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def profile_post(self, path, data):
         c = str(data.get("c", ""))
-        if not re.fullmatch(r"[\w.-]+", c) or not os.path.isdir(os.path.join(LOCAL, c)):
+        if not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
             return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
         fn = {"/profile-save": profile_api.save, "/profile-new": profile_api.new, "/profile-remove": profile_api.remove,
               "/profile-flag": profile_api.flag, "/profile-restore": profile_api.restore, "/profile-request": profile_request,
@@ -1961,7 +1970,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         # Only the page itself may act: custom header (forces a CORS preflight) and a local Host.
-        host_ok = self.headers.get("Host", "") in (f"127.0.0.1:{PORT}", f"localhost:{PORT}")
+        host_ok = self.host_ok()
         path = urlparse(self.path).path
         if path not in ("/save", "/reveal", "/copy", "/comment", "/comment-status", "/new-case", "/generate", "/prep", "/set-template", "/draft") \
                 + PROFILE_POSTS or self.headers.get("X-OpenVita") != "1" or not host_ok:
@@ -1979,7 +1988,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.profile_post(path, data)
         if path == "/save":
             c = str(data.get("c", ""))
-            if not re.fullmatch(r"[\w.-]+", c) or not os.path.isdir(os.path.join(LOCAL, c)):
+            if not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
                 return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
             message = str(data.get("message", ""))[:200]
             ok, changed = save_revision(c, message or f"snapshot {time.strftime('%Y-%m-%d %H:%M')}")
@@ -1989,7 +1998,7 @@ class Handler(BaseHTTPRequestHandler):
             comment, quote = str(data.get("comment", "")).strip()[:2000], str(data.get("quote", "")).strip()[:1500]
             c = parse(t)[0] if not t.startswith("doc/") else str(data.get("c", ""))
             if not (valid(t) or DOC_RE.fullmatch(t)) or not comment or not quote \
-                    or not re.fullmatch(r"[\w.-]+", c) or not os.path.isdir(os.path.join(LOCAL, c)):
+                    or not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
                 return self.json({"ok": False, "message": "bad request"}, 400)
             with fb_lock:
                 items = load_feedback(c)
@@ -2007,9 +2016,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({"ok": True})
         if path == "/new-case":
             c, name, ad = str(data.get("c", "")), str(data.get("name", "")).strip(), str(data.get("jobad", "")).strip()
-            if not re.fullmatch(r"[\w.-]+", c) or not os.path.isdir(os.path.join(LOCAL, c)):
+            if not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
                 return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
-            if not re.fullmatch(r"\d{4}-\d{2}-[\w.-]+", name) or len(ad) < 40:
+            if not re.fullmatch(r"\d{4}-\d{2}-[\w.-]{1,90}", name) or len(ad) < 40:
                 return self.json({"ok": False, "message": say(c, "name-or-ad")}, 400)
             tpl = str(data.get("template", ""))
             if tpl and tpl not in templates.names(c):
@@ -2075,7 +2084,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({"ok": True, "message": say(c, "prep-requested")})
         if path == "/comment-status":
             c = str(data.get("c", ""))
-            if not re.fullmatch(r"[\w.-]+", c) or data.get("status") not in ("open", "done", "archived", "delete"):
+            if not NAME.fullmatch(c) or data.get("status") not in ("open", "done", "archived", "delete"):
                 return self.json({"ok": False, "message": "bad request"}, 400)
             with fb_lock:
                 items = load_feedback(c)

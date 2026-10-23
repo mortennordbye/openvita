@@ -164,6 +164,20 @@ class ServeProfile(unittest.TestCase):
         self.assertEqual(self.post("/profile-save", {"id": "../../etc/passwd", "meta": {}})[0], 400)
         self.assertEqual(self.post("/profile-new", {"type": "person", "fields": {}})[0], 400)
         self.assertEqual(self.post("/profile-save", {"c": "../x", "id": A})[0], 400)
+        self.assertEqual(self.post("/save", {"c": ".."})[0], 400)
+        self.assertEqual(self.post("/comment-status", {"c": "..", "status": "done"})[0], 400)
+        # Reading needs a local Host too, so a page on another name that resolves to 127.0.0.1
+        # (DNS rebinding) gets nothing.
+        for path in ("/profile?c=ola", "/comments?c=ola", "/state", "/"):
+            req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", headers={"Host": "evil.example"})
+            with self.assertRaises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req)
+            self.assertEqual(e.exception.code, 403)
+            e.exception.close()
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(f"http://127.0.0.1:{self.port}/comments?c=..")
+        self.assertEqual(e.exception.code, 404)
+        e.exception.close()
         mpath = os.path.join(self.prof, "openself.json")
         with open(mpath, encoding="utf-8") as f:
             manifest = f.read()

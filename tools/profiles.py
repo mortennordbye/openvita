@@ -30,6 +30,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL = os.environ.get("OPENVITA_LOCAL") or os.path.join(ROOT, "local")
 CONFIG = "openvita.json"
 RESERVED = ("customers", ".assistant")  # folders in local/ that are not a person
+# A person's or a case's name: starts with a letter, digit or _, so never "." or "..", and stays
+# a single path segment. Bounded, so a regex over it cannot be made slow.
+NAME = re.compile(r"\w[\w.-]{0,99}")
 ASSISTANT_STALE = 5  # seconds without a heartbeat before the workbench says no assistant is connected
 sys.path.insert(0, os.path.join(ROOT, "openself"))
 
@@ -42,7 +45,7 @@ LANGUAGES = ["en", "nb"]
 
 
 def person_dir(c):
-    if not re.fullmatch(r"[\w.-]+", c) or c in RESERVED:
+    if not NAME.fullmatch(c) or c in RESERVED:
         raise ValueError(f"bad name {c!r}")
     return os.path.join(LOCAL, c)
 
