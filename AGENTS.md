@@ -183,7 +183,8 @@ For each open item:
    the comment says so, in their words (rule 0 in `guide/profile.md`), then `make profile-index`,
    `make lint-profile` and `make profile-commit` for that entry.
 3. `source: prompt` or `personal` asks to change the instructions. Personal wishes go in
-   `local/<name>/AGENTS.md`. Shared rules change only through a pull request to this repository.
+   `local/<name>/AGENTS.md`. Shared rules change only through a pull request to this repository, titled in
+   Conventional Commits (`docs(guide): ...`), since `main` takes no direct pushes.
 4. `generate`: follow "Tailoring a CV to a job". `prep`: follow "Preparing for a meeting".
    `profile-interview`: interview the person about
    `entry` (empty: a new one) as phase 3 of the onboarding skill, then index, lint and
