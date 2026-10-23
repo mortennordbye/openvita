@@ -24,3 +24,14 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore(deps):"
+  # Test-only requirements, hash-pinned.
+  - package-ecosystem: "pip"
+    directory: "/tools/tests"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps):"
+    groups:
+      tests:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
