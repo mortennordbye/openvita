@@ -126,6 +126,15 @@ recent = {}  # target -> last time a browser asked about it
 NAME = profiles.NAME  # a person's name, one path segment
 
 
+def is_person(c):
+    """Whether c names a person's folder in local/. normpath, not realpath: the folder may be a
+    link into an OpenSelf home (make connect-home)."""
+    if not NAME.fullmatch(c):
+        return False
+    d = os.path.normpath(os.path.join(LOCAL, c))
+    return d.startswith(LOCAL + os.sep) and os.path.isdir(d)
+
+
 # A target is "<person>/<path>", where path is base/<variant> or applications/<case>.
 def parse(k):
     c, _, path = k.partition("/")
@@ -1958,7 +1967,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def profile_post(self, path, data):
         c = str(data.get("c", ""))
-        if not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
+        if not is_person(c):
             return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
         fn = {"/profile-save": profile_api.save, "/profile-new": profile_api.new, "/profile-remove": profile_api.remove,
               "/profile-flag": profile_api.flag, "/profile-restore": profile_api.restore, "/profile-request": profile_request,
@@ -1988,7 +1997,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.profile_post(path, data)
         if path == "/save":
             c = str(data.get("c", ""))
-            if not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
+            if not is_person(c):
                 return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
             message = str(data.get("message", ""))[:200]
             ok, changed = save_revision(c, message or f"snapshot {time.strftime('%Y-%m-%d %H:%M')}")
@@ -1998,7 +2007,7 @@ class Handler(BaseHTTPRequestHandler):
             comment, quote = str(data.get("comment", "")).strip()[:2000], str(data.get("quote", "")).strip()[:1500]
             c = parse(t)[0] if not t.startswith("doc/") else str(data.get("c", ""))
             if not (valid(t) or DOC_RE.fullmatch(t)) or not comment or not quote \
-                    or not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
+                    or not is_person(c):
                 return self.json({"ok": False, "message": "bad request"}, 400)
             with fb_lock:
                 items = load_feedback(c)
@@ -2016,7 +2025,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({"ok": True})
         if path == "/new-case":
             c, name, ad = str(data.get("c", "")), str(data.get("name", "")).strip(), str(data.get("jobad", "")).strip()
-            if not NAME.fullmatch(c) or not os.path.isdir(os.path.join(LOCAL, c)):
+            if not is_person(c):
                 return self.json({"ok": False, "message": say("", "unknown-person")}, 400)
             if not re.fullmatch(r"\d{4}-\d{2}-[\w.-]{1,90}", name) or len(ad) < 40:
                 return self.json({"ok": False, "message": say(c, "name-or-ad")}, 400)
