@@ -8,6 +8,18 @@ does the edits. Bring your own template, or your company's.
 
 It works for you on your own, and for people at a company that has its own CV look.
 
+**[OpenSelf documentation](https://mortennordbye.github.io/openself/)**: how OpenSelf, your
+profile repository and OpenVita fit together, and
+[getting started](https://mortennordbye.github.io/openself/getting-started/) if you have no
+profile yet. OpenVita has its own page there:
+[CVs with OpenVita](https://mortennordbye.github.io/openself/openvita/).
+
+[![From profile to PDF: the profile goes through OpenSelf's public view into a first draft; in the workbench the CV is a PDF rebuilt on every save, edited by the assistant from your comments, in the template you choose; make release keeps the PDF you sent](https://raw.githubusercontent.com/mortennordbye/openself/main/docs/assets/diagrams/openvita-flow.png)](https://raw.githubusercontent.com/mortennordbye/openself/main/docs/assets/diagrams/openvita-flow.png)
+
+> **Click to open the full-size image.** Rendered from
+> [this file](https://github.com/mortennordbye/openself/blob/main/docs/assets/diagrams/openvita-flow.d2)
+> in the OpenSelf repository, where all the diagrams live.
+
 ## What you get
 
 - **A draft from your profile.** `make draft` builds a complete CV from the profile, following its
