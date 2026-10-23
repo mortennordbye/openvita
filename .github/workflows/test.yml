@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install pyyaml  # only to prove the frontmatter is real YAML
+      - run: pip install --require-hashes -r tools/tests/requirements.txt  # only to prove the frontmatter is real YAML
       - name: Install age (for the encrypted home tests)
         run: |
           curl -sSL https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz | tar xz
