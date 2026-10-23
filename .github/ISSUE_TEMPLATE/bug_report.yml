@@ -1,0 +1,25 @@
+name: Bug report
+description: Report something that is broken
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Never paste a real CV, profile text, a job application or keys here. Reproduce with the example profile if you can (`make new-person C=ola PROFILE=openself/example`).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / environment
+      description: openvita commit, Python version, Docker or local rendering, OS
