@@ -1,4 +1,15 @@
+<div align="center">
+
+<img src="assets/icon.svg" alt="" width="112" height="112">
+
 # OpenVita
+
+### An open CV builder that turns an OpenSelf profile into tailored CVs.
+
+[![Python](https://img.shields.io/badge/Python-2e3e58?style=flat-square&logo=python&logoColor=white)](https://www.python.org) [![Docker](https://img.shields.io/badge/Docker-2e3e58?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com) [![OpenSelf](https://img.shields.io/badge/OpenSelf-2e3e58?style=flat-square)](https://github.com/mortennordbye/openself)<br>
+[![tests](https://img.shields.io/github/actions/workflow/status/mortennordbye/openvita/test.yml?branch=main&style=flat-square&labelColor=2e3e58&label=tests)](https://github.com/mortennordbye/openvita/actions/workflows/test.yml) [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/mortennordbye/openvita?style=flat-square&labelColor=2e3e58&label=openssf%20scorecard)](https://scorecard.dev/viewer/?uri=github.com/mortennordbye/openvita) [![License](https://img.shields.io/github/license/mortennordbye/openvita?style=flat-square&labelColor=2e3e58&color=6aa4f8)](LICENSE) [![Last commit](https://img.shields.io/github/last-commit/mortennordbye/openvita?style=flat-square&labelColor=2e3e58&color=6aa4f8)](https://github.com/mortennordbye/openvita/commits/main) [![Stars](https://img.shields.io/github/stars/mortennordbye/openvita?style=flat-square&labelColor=2e3e58&color=6aa4f8)](https://github.com/mortennordbye/openvita/stargazers)
+
+</div>
 
 **[Docs](https://mortennordbye.github.io/openself/openvita/)** ·
 [OpenSelf](https://github.com/mortennordbye/openself) ·
