@@ -36,3 +36,15 @@ jobs:
       - run: make test
       - name: Nothing local in any commit
         run: python3 tools/guard.py --history
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build -t openvita:ci .
+      - name: The render tools start
+        run: |
+          docker run --rm openvita:ci python3 -c "import weasyprint; print(weasyprint.__version__)"
+          docker run --rm openvita:ci pdftoppm -v
+          docker run --rm openvita:ci soffice --version
