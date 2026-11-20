@@ -3,7 +3,7 @@
 # Calibri, Cambria, Times New Roman and Arial with the same metrics.
 # CV fonts come from each template via @font-face, not from the system.
 # Pinned by digest; Dependabot bumps it.
-FROM python:3.14-slim-trixie@sha256:0514bc76712d64f8bb48adcb95b1ab0d88c69fee95d62fe4c18ee948bee9b1e1
+FROM python:3.15-slim-trixie@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 poppler-utils fontconfig \
